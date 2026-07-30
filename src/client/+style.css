@@ -2299,6 +2299,10 @@
 }
 
 @layer utilities {
+	:where(*) {
+		font-variant-numeric: tabular-nums;
+	}
+
 	@media (max-width: 900px) {
 		.hero,
 		.split,

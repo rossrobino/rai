@@ -33,6 +33,13 @@ test("the project theme extends UICO and supports both color schemes", () => {
 	}
 });
 
+test("numeric text uses tabular figures throughout the document", () => {
+	assert.match(
+		css,
+		/@layer utilities\s*\{\s*:where\(\*\)\s*\{[^}]*font-variant-numeric:\s*tabular-nums;/s,
+	);
+});
+
 test("component colors resolve through semantic theme tokens", () => {
 	const rules = css.slice(css.indexOf("@layer base"));
 
