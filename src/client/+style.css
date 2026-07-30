@@ -594,10 +594,7 @@
 		display: flex;
 		flex-direction: column;
 		min-block-size: 28rem;
-		transition:
-			background-color var(--motion-medium) var(--ease-out),
-			color var(--motion-medium) var(--ease-out),
-			transform var(--motion-fast) var(--ease-out);
+		transition: transform var(--motion-fast) var(--ease-out);
 	}
 
 	.market-card:active {
@@ -605,29 +602,6 @@
 	}
 
 	@media (hover: hover) and (pointer: fine) {
-		.market-card:hover {
-			background: var(--accent);
-			color: var(--accent-foreground);
-		}
-
-		.market-card:hover
-			:is(
-				p,
-				small,
-				.market-card-value.unavailable > span,
-				.valuation-card-signal > span,
-				.valuation-card-estimate > div span
-			) {
-			color: var(--accent-muted);
-		}
-
-		.market-card:hover .valuation-card-top,
-		.market-card:hover .valuation-card-estimate,
-		.market-card:hover .valuation-card-signals,
-		.market-card:hover .valuation-card-signal + .valuation-card-signal {
-			border-color: var(--accent-line);
-		}
-
 		.market-card:hover .market-card-meta b {
 			transform: translateX(0.25rem);
 		}
