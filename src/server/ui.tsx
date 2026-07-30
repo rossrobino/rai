@@ -43,6 +43,28 @@ export function Layout(props: {
 				/>
 				<link rel="icon" href={mark} type="image/svg+xml" />
 				{Render.html(style.tags)}
+				<script type="speculationrules">
+					{Render.html(
+						JSON.stringify({
+							prerender: [
+								{
+									where: {
+										and: [
+											{ href_matches: "/*" },
+											{
+												not: {
+													selector_matches:
+														'a[href^="#"], [target="_blank"], [download], [rel~="nofollow"]',
+												},
+											},
+										],
+									},
+									eagerness: "moderate",
+								},
+							],
+						}),
+					)}
+				</script>
 				<title>{props.title} · Rai</title>
 			</head>
 			<body>
