@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"rootDir": "${configDir}",
+		"target": "ESNext",
+		"lib": ["ESNext", "DOM"],
+		"skipLibCheck": true,
+		"module": "Preserve",
+		"moduleResolution": "Bundler",
+		"verbatimModuleSyntax": true,
+		"allowImportingTsExtensions": true,
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"noEmit": true,
+		"allowJs": true,
+		"checkJs": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "ovr",
+		"noUnusedLocals": true,
+		"noImplicitOverride": true,
+		"noUnusedParameters": true,
+		"noUncheckedIndexedAccess": true,
+		"noFallthroughCasesInSwitch": true,
+		"erasableSyntaxOnly": true,
+		"paths": {
+			"@": ["./src"],
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["${configDir}/src", "${configDir}/*.js", "${configDir}/*.ts"],
+	"exclude": ["${configDir}/node_modules", "${configDir}/dist"]
+}

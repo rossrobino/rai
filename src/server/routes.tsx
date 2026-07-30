@@ -1,0 +1,1829 @@
+import { Render, Route, type JSX } from "ovr";
+import polymarket from "@/assets/polymarket-icon.svg?no-inline";
+import {
+	companies,
+	getCompany,
+	getCompanyMethod,
+	getCompanyMethods,
+	type Company,
+	type CompanyMethod,
+} from "@/server/companies";
+import type {
+	PredictionIpoMethod,
+	PredictionThresholdMethod,
+} from "@/server/company-schema";
+import {
+	calculate,
+	calculateThresholds,
+	combineValuations,
+	formatDate,
+	formatDateTime,
+	formatMoney,
+	formatProbability,
+} from "@/server/model";
+import { getMethod, methods } from "@/server/methods";
+import {
+	fetchCompanyMarkets,
+	fetchThresholdMarkets,
+} from "@/server/polymarket";
+import { getMethodProviders, getProvider } from "@/server/providers";
+import {
+	AssumptionList,
+	AuditTable,
+	BrandMark,
+	Distribution,
+	Eyebrow,
+	Layout,
+	Metric,
+} from "@/server/ui";
+
+const ensemble = "current-valuation-ensemble";
+
+function Navigation() {
+	return (
+		<>
+			<home.Anchor class="brand">
+				<BrandMark />
+				Rai
+			</home.Anchor>
+			<nav aria-label="Primary navigation">
+				<dashboard.Anchor>Dashboard</dashboard.Anchor>
+				<methodologies.Anchor>Methodology</methodologies.Anchor>
+			</nav>
+		</>
+	);
+}
+
+function Page(props: {
+	title: string;
+	description?: string;
+	children?: JSX.Element;
+}) {
+	return <Layout {...props} navigation={<Navigation />} />;
+}
+
+export const home = Route.get("/", () => (
+	<Page
+		title="Private-company valuations from market data"
+		description="Current private-company valuation estimates derived from public prediction-market probabilities."
+	>
+		<HomePage />
+	</Page>
+));
+
+function HomePage() {
+	const preview = getCompany("anthropic");
+
+	return (
+		<main id="content">
+			<section class="hero hero-solo shell">
+				<div class="hero-copy">
+					<Eyebrow>
+						Rai · private-market research · {companies.length} companies
+					</Eyebrow>
+					<h1>
+						The crowd’s view, <em>priced into a valuation.</em>
+					</h1>
+					<p class="lede">
+						We convert public prediction-market probabilities into transparent,
+						probability-weighted estimates.
+					</p>
+					<div class="hero-actions">
+						<dashboard.Anchor class="button accent">
+							Open the dashboard
+						</dashboard.Anchor>
+						<home.Anchor class="text-link" hash="method">
+							See the method <span aria-hidden="true">↓</span>
+						</home.Anchor>
+					</div>
+				</div>
+			</section>
+
+			<section class="tape" aria-label="Model highlights">
+				<div class="shell tape-inner">
+					<span>LIVE SOURCES</span>
+					<b>POLYMARKET</b>
+					<span>·</span>
+					<b>{companies.length} COMPANIES</b>
+					<span>·</span>
+					<b>PUBLIC MARKET LINKS</b>
+				</div>
+			</section>
+
+			<section class="shell section split" id="method">
+				<div class="prose">
+					<Eyebrow>Method overview</Eyebrow>
+					<h2>From market probabilities to a valuation distribution</h2>
+					<p>
+						Each source contract provides a selected probability. The
+						calculation normalizes mutually exclusive outcomes, assigns
+						representative values, and, when required, adjusts future values to
+						the calculation date.
+					</p>
+					<methodologies.Anchor class="text-link">
+						Browse methodologies <span aria-hidden="true">→</span>
+					</methodologies.Anchor>
+				</div>
+				<nav class="method-index" aria-label="Valuation methodologies">
+					{methods.map((method, i) => (
+						<methodology.Anchor params={{ method: method.name }}>
+							<span>{String(i + 1).padStart(2, "0")}</span>
+							<div>
+								<strong>{method.content.frontmatter.title}</strong>
+								<small>{method.content.frontmatter.description}</small>
+							</div>
+							<b aria-hidden="true">↗</b>
+						</methodology.Anchor>
+					))}
+				</nav>
+			</section>
+
+			{preview ? (
+				<section class="shell home-preview">
+					<div class="home-preview-copy prose">
+						<Eyebrow>Dashboard preview</Eyebrow>
+						<h2>Current company estimates</h2>
+						<p>
+							The dashboard contains the full company set, source status, method
+							counts, and the current output of each distinct model.
+						</p>
+						<dashboard.Anchor class="button">View dashboard</dashboard.Anchor>
+					</div>
+					<div class="home-preview-card">
+						<CompanyMarketCard config={preview} load={resolveBoard(preview)} />
+					</div>
+				</section>
+			) : null}
+		</main>
+	);
+}
+
+export const dashboard = Route.get("/dashboard", () => (
+	<Page
+		title="Valuation dashboard"
+		description="Polymarket-based company valuation signals, source status, and method coverage."
+	>
+		<DashboardPage />
+	</Page>
+));
+
+function DashboardPage() {
+	const assignments = companies.flatMap((config) => config.methods);
+	const board = companies.map((config) => ({
+		config,
+		load: resolveBoard(config),
+	}));
+
+	return (
+		<main id="content">
+			<section class="shell dashboard-hero">
+				<div class="prose">
+					<Eyebrow>Valuation dashboard</Eyebrow>
+					<h1>Company estimates</h1>
+					<p>
+						Derived current valuations calculated from configured public
+						prediction-market methods.
+					</p>
+				</div>
+				<dl class="dashboard-stats">
+					<div>
+						<dt>Companies</dt>
+						<dd>{companies.length}</dd>
+					</div>
+					<div>
+						<dt>Method assignments</dt>
+						<dd>{assignments.length}</dd>
+					</div>
+					<div>
+						<dt>Live assignments</dt>
+						<dd>
+							{assignments.filter((method) => method.storage === "live").length}
+						</dd>
+					</div>
+					<div>
+						<dt>Evidence families</dt>
+						<dd>{new Set(assignments.map((method) => method.family)).size}</dd>
+					</div>
+				</dl>
+			</section>
+
+			<section class="shell dashboard-board">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Company coverage</Eyebrow>
+						<h2>Current valuations</h2>
+					</div>
+					<p>
+						Each headline combines current-equivalent method outputs using the
+						configured weights. The input estimates and their range remain
+						visible on every card.
+					</p>
+				</div>
+				<div class="market-board">
+					{board.map(({ config, load }) => (
+						<CompanyMarketCard config={config} load={load} />
+					))}
+				</div>
+			</section>
+		</main>
+	);
+}
+
+type LoadedMethod =
+	| {
+			kind: "ipo";
+			method: PredictionIpoMethod;
+			current: ReturnType<typeof calculate>;
+			assumptions: PredictionIpoMethod["assumptions"];
+			fetchedAt?: string;
+	  }
+	| {
+			kind: "threshold";
+			method: PredictionThresholdMethod;
+			current: ReturnType<typeof calculateThresholds>;
+			assumptions: PredictionThresholdMethod["assumptions"];
+			fetchedAt?: string;
+	  };
+
+function valuationValue(value: LoadedMethod) {
+	return value.kind === "ipo"
+		? value.current.presentImpliedValue
+		: value.current.deadlinePeakCurrentEquivalent;
+}
+
+function methodTitle(method: CompanyMethod) {
+	return getMethod(method.method)?.content.frontmatter.title ?? method.method;
+}
+
+function methodSummary(method: CompanyMethod) {
+	switch (method.method) {
+		case "prediction-market-ipo":
+			return `${getProvider(method.data.provider)?.name ?? method.data.provider} · ${method.data.events.length} source ${method.data.events.length === 1 ? "event" : "events"} · ${method.data.outcomes.length} outcomes`;
+		case "prediction-market-valuation-thresholds":
+			return `${getProvider(method.data.provider)?.name ?? method.data.provider} · ${method.data.thresholds.length} thresholds · maximum NPM Price by ${formatDate(method.data.claim.deadline)}`;
+	}
+}
+
+async function loadMethod(
+	_config: Company,
+	method: CompanyMethod,
+): Promise<LoadedMethod> {
+	if (method.method === "prediction-market-valuation-thresholds") {
+		const thresholds = await fetchThresholdMarkets(method);
+		const current = calculateThresholds(thresholds, method.assumptions);
+		return {
+			kind: "threshold",
+			method,
+			current,
+			assumptions: method.assumptions,
+			fetchedAt: thresholds[0]?.fetchedAt,
+		};
+	}
+
+	const outcomes = await fetchCompanyMarkets(method);
+	const current = calculate(outcomes, method.assumptions);
+	return {
+		kind: "ipo",
+		method,
+		current,
+		assumptions: method.assumptions,
+		fetchedAt: outcomes[0]?.fetchedAt,
+	};
+}
+
+function companyLoader(config: Company) {
+	const cache = new Map<string, Promise<LoadedMethod>>();
+	const load = (method: CompanyMethod) => {
+		const found = cache.get(method.id);
+		if (found) return found;
+		const request = Promise.resolve().then(() => loadMethod(config, method));
+		cache.set(method.id, request);
+		return request;
+	};
+	return load;
+}
+
+export const company = Route.get("/companies/:name", (c) => {
+	const config = getCompany(c.params.name);
+	if (!config) {
+		c.res.status = 404;
+		return (
+			<Page title="Company not found">
+				<main id="content" class="shell empty-state">
+					<Eyebrow>404 · Companies</Eyebrow>
+					<h1>This company does not have a configured market ladder.</h1>
+					<dashboard.Anchor class="button">
+						View supported companies
+					</dashboard.Anchor>
+				</main>
+			</Page>
+		);
+	}
+
+	const assigned = getCompanyMethods(config);
+	const view = c.url.searchParams.get("view");
+	if (view) {
+		c.res.status = 404;
+		return (
+			<Page title="View not found">
+				<main id="content" class="shell empty-state">
+					<Eyebrow>404 · {config.name}</Eyebrow>
+					<h1>This company view does not exist.</h1>
+					<company.Anchor class="button" params={{ name: config.slug }}>
+						View company methods
+					</company.Anchor>
+				</main>
+			</Page>
+		);
+	}
+	const requested = c.url.searchParams.get("method");
+	const selected = requested
+		? getCompanyMethod(config, requested)
+		: assigned.length === 1
+			? assigned[0]
+			: undefined;
+
+	if (requested && !selected) {
+		c.res.status = 404;
+		return (
+			<Page title="Method not found">
+				<main id="content" class="shell empty-state">
+					<Eyebrow>404 · {config.name}</Eyebrow>
+					<h1>This method is not assigned to the company.</h1>
+					<company.Anchor class="button" params={{ name: config.slug }}>
+						View company methods
+					</company.Anchor>
+				</main>
+			</Page>
+		);
+	}
+
+	if (!selected) {
+		return (
+			<Page
+				title={`${config.name} valuation methods`}
+				description={config.description}
+			>
+				<main id="content">
+					<section class="company-hero shell">
+						<div>
+							<Eyebrow>
+								Company {config.number} · {config.sector}
+							</Eyebrow>
+							<h1>{config.name}</h1>
+							<p>{config.description}</p>
+						</div>
+					</section>
+					<CompanyValuationSummary
+						config={config}
+						load={resolveBoard(config)}
+					/>
+					<section class="shell section">
+						<div class="section-heading">
+							<div>
+								<Eyebrow>Assigned methods</Eyebrow>
+								<h2>Assigned valuation methods</h2>
+							</div>
+							<p>
+								Select a method to inspect its source contract, assumptions,
+								calculation, and output definition.
+							</p>
+						</div>
+						<div class="company-grid method-grid">
+							{assigned.map((method) => (
+								<company.Anchor
+									class="company-card"
+									params={{ name: config.slug }}
+									search={{ method: method.id }}
+								>
+									<span>{method.family.replaceAll("-", " ")}</span>
+									<h3>{methodTitle(method)}</h3>
+									<p>{methodSummary(method)}</p>
+									<div>
+										<small>{method.id}</small>
+										<strong aria-hidden="true">↗</strong>
+									</div>
+								</company.Anchor>
+							))}
+						</div>
+					</section>
+				</main>
+			</Page>
+		);
+	}
+
+	const entry = getMethod(selected.method)?.content.frontmatter;
+	return (
+		<Page
+			title={`${config.name} · ${entry?.title ?? methodTitle(selected)}`}
+			description={
+				entry
+					? `${entry.title} applied to ${config.name}. ${entry.description}`
+					: `${methodTitle(selected)} applied to ${config.name}.`
+			}
+		>
+			<CompanyPage config={config} selected={selected} requested={requested} />
+		</Page>
+	);
+});
+
+export const observation = Route.get(
+	"/api/companies/:name/methods/:method",
+	async (c) => {
+		const config = getCompany(c.params.name);
+		const method = config
+			? getCompanyMethod(config, c.params.method)
+			: undefined;
+		if (!config || !method) {
+			c.res.status = 404;
+			return c.json({ error: "Company method not found." });
+		}
+
+		try {
+			const loaded = await loadMethod(config, method);
+			return c.json({
+				schemaVersion: 1,
+				company: {
+					id: config.id,
+					slug: config.slug,
+					name: config.name,
+				},
+				method,
+				observation: {
+					fetchedAt: loaded.fetchedAt,
+					calculation: loaded.current,
+				},
+			});
+		} catch (error) {
+			c.res.status = 502;
+			return c.json({
+				error:
+					error instanceof Error
+						? error.message
+						: "The market source was unavailable.",
+			});
+		}
+	},
+);
+
+async function resolveMethod(config: Company, method: CompanyMethod) {
+	try {
+		return { value: await companyLoader(config)(method), error: null };
+	} catch (error) {
+		return { value: null, error };
+	}
+}
+
+async function loadBoard(config: Company) {
+	const load = companyLoader(config);
+	const results = await Promise.all(
+		config.methods.map(async (method) => {
+			try {
+				return await load(method);
+			} catch {
+				return null;
+			}
+		}),
+	);
+	const loaded = results.filter(
+		(value): value is LoadedMethod => value != null,
+	);
+	if (loaded.length === 0) {
+		throw new Error("No assigned valuation method is currently available.");
+	}
+
+	return {
+		loaded,
+		failed: config.methods.length - loaded.length,
+		estimate: combineValuations(
+			loaded.map((value) => ({
+				family: value.method.family,
+				familyWeight: value.method.familyWeight,
+				value: valuationValue(value),
+				weight: value.method.weight,
+			})),
+		),
+		fetchedAt: loaded
+			.map((value) => value.fetchedAt)
+			.filter((value) => value != null)
+			.sort()[0],
+	};
+}
+
+async function resolveBoard(config: Company) {
+	try {
+		return { value: await loadBoard(config), error: null };
+	} catch (error) {
+		return { value: null, error };
+	}
+}
+
+function sourceMode(config: Company) {
+	const live = config.methods.filter(
+		(method) => method.storage === "live",
+	).length;
+	if (live === config.methods.length) {
+		return { label: "Market live", class: "live" };
+	}
+	if (live === 0) {
+		return { label: "Dated sources", class: "dated" };
+	}
+	return { label: "Mixed sources", class: "mixed" };
+}
+
+function CompanyMarketCard(props: {
+	config: Company;
+	load: ReturnType<typeof resolveBoard>;
+}) {
+	const { config, load } = props;
+	const mode = sourceMode(config);
+
+	return (
+		<company.Anchor
+			class="valuation-card market-card"
+			params={{ name: config.slug }}
+		>
+			<div class="valuation-card-top">
+				<span class={`status ${mode.class}`}>
+					<i aria-hidden="true" /> {mode.label}
+				</span>
+				<span>{config.code}</span>
+			</div>
+			<CompanyMarketValue config={config} load={load} />
+		</company.Anchor>
+	);
+}
+
+async function CompanyMarketValue(props: {
+	config: Company;
+	load: ReturnType<typeof resolveBoard>;
+}) {
+	const result = await props.load;
+	if (!result.value) {
+		return (
+			<div class="market-card-value unavailable">
+				<p>Valuation signals</p>
+				<strong>—</strong>
+				<span>Market sources are temporarily unavailable.</span>
+				<small>
+					Open {props.config.name} to inspect its configured methods.
+				</small>
+			</div>
+		);
+	}
+
+	const { estimate, failed, fetchedAt, loaded } = result.value;
+	return (
+		<div class="market-card-value">
+			<p>
+				<span>Rai current valuation</span>
+				<small>
+					{failed > 0
+						? "Partial estimate"
+						: loaded.length === 1
+							? "Single method"
+							: "Weighted estimate"}
+				</small>
+			</p>
+			<div class="valuation-card-estimate">
+				<strong>{formatMoney(estimate.value, true)}</strong>
+				<small>
+					{estimate.methods} current-equivalent{" "}
+					{estimate.methods === 1 ? "input" : "inputs"}
+				</small>
+				{estimate.methods > 1 ? (
+					<div>
+						<span>Input range</span>
+						<b>
+							{formatMoney(estimate.low, true)}–
+							{formatMoney(estimate.high, true)}
+						</b>
+					</div>
+				) : null}
+			</div>
+			<div class="valuation-card-signals">
+				{loaded.map((value) => (
+					<div class="valuation-card-signal">
+						<span>
+							{value.kind === "ipo" ? "IPO ladder" : "Threshold curve"}
+						</span>
+						<b>{formatMoney(valuationValue(value), true)}</b>
+					</div>
+				))}
+			</div>
+			<div class="market-card-meta">
+				<small>
+					{fetchedAt
+						? `Fetched ${formatDateTime(fetchedAt)}`
+						: "Fetch time unavailable"}
+					{failed > 0
+						? ` · ${failed} ${failed === 1 ? "method" : "methods"} unavailable`
+						: ""}
+				</small>
+				<b aria-hidden="true">↗</b>
+			</div>
+		</div>
+	);
+}
+
+async function CompanyValuationSummary(props: {
+	config: Company;
+	load: ReturnType<typeof resolveBoard>;
+}) {
+	const result = await props.load;
+	if (!result.value) {
+		return (
+			<section class="shell alert warning">
+				The current valuation is temporarily unavailable. The configured methods
+				remain available for inspection.
+			</section>
+		);
+	}
+
+	const { estimate, fetchedAt, loaded } = result.value;
+	return (
+		<section
+			class="shell company-valuation"
+			aria-label={`${props.config.name} current valuation`}
+		>
+			<div>
+				<Eyebrow>Rai current valuation</Eyebrow>
+				<strong>{formatMoney(estimate.value, true)}</strong>
+				<p>
+					A weighted estimate derived from {estimate.methods} current-equivalent{" "}
+					{estimate.methods === 1 ? "method" : "methods"}. Each component
+					calculation remains available below.
+				</p>
+			</div>
+			<dl>
+				<div>
+					<dt>Input range</dt>
+					<dd>
+						{formatMoney(estimate.low, true)}–{formatMoney(estimate.high, true)}
+					</dd>
+				</div>
+				<div>
+					<dt>Weighting</dt>
+					<dd>
+						{estimate.families.length === 1 &&
+						new Set(loaded.map((value) => value.method.weight)).size === 1
+							? "Equal within family"
+							: "Configured hierarchy"}
+					</dd>
+				</div>
+				<div>
+					<dt>Input spread</dt>
+					<dd>{formatProbability(estimate.spreadRatio)}</dd>
+				</div>
+				<div>
+					<dt>Fetched</dt>
+					<dd>{fetchedAt ? formatDateTime(fetchedAt) : "Unavailable"}</dd>
+				</div>
+			</dl>
+		</section>
+	);
+}
+
+function CompanyPage(props: {
+	config: Company;
+	selected: CompanyMethod;
+	requested: string | null;
+}) {
+	const { config, selected, requested } = props;
+	const load = resolveMethod(config, selected);
+
+	return (
+		<main id="content">
+			<section class="company-hero shell">
+				<div>
+					<Eyebrow>
+						Company {config.number} · {config.sector}
+					</Eyebrow>
+					<h1>{config.name}</h1>
+					<p>{config.description}</p>
+				</div>
+				<CompanyAsOf
+					config={config}
+					selected={selected}
+					requested={requested}
+					load={load}
+				/>
+			</section>
+			<CompanyAnalysis config={config} load={load} />
+		</main>
+	);
+}
+
+async function CompanyAsOf(props: {
+	config: Company;
+	selected: CompanyMethod;
+	requested: string | null;
+	load: ReturnType<typeof resolveMethod>;
+}) {
+	const { config, selected, requested, load } = props;
+	const result = await load;
+	const fetchedAt = result.value?.fetchedAt;
+
+	return (
+		<div class="as-of">
+			<span>Assignment {selected.id}</span>
+			<methodology.Anchor params={{ method: selected.method }}>
+				Read methodology
+			</methodology.Anchor>
+			<span>Fetched by Rai at</span>
+			<strong>
+				{fetchedAt
+					? formatDateTime(fetchedAt)
+					: result.error
+						? "Source unavailable"
+						: "Loading source"}
+			</strong>
+			<company.Anchor
+				params={{ name: config.slug }}
+				search={requested ? { method: selected.id } : undefined}
+			>
+				Refresh data
+			</company.Anchor>
+			<observation.Anchor
+				params={{ name: config.slug, method: selected.id }}
+				target="_blank"
+			>
+				Export current JSON
+			</observation.Anchor>
+		</div>
+	);
+}
+
+async function CompanyAnalysis(props: {
+	config: Company;
+	load: ReturnType<typeof resolveMethod>;
+}) {
+	const { config, load } = props;
+	const result = await load;
+	if (!result.value) {
+		return (
+			<section class="shell empty-state">
+				<Eyebrow>Remote market unavailable</Eyebrow>
+				<h2>{config.name} could not be calculated from the current sources.</h2>
+				<p>
+					{result.error instanceof Error
+						? result.error.message
+						: "Polymarket returned an unexpected response."}
+				</p>
+				<company.Anchor class="button" params={{ name: config.slug }}>
+					Try again
+				</company.Anchor>
+			</section>
+		);
+	}
+
+	if (result.value.kind === "threshold") {
+		return <ThresholdAnalysis config={config} value={result.value} />;
+	}
+	return (
+		<IpoAnalysis
+			config={config}
+			selected={result.value.method}
+			value={result.value}
+		/>
+	);
+}
+
+function IpoAnalysis(props: {
+	config: Company;
+	selected: PredictionIpoMethod;
+	value: Extract<LoadedMethod, { kind: "ipo" }>;
+}) {
+	const { config, value } = props;
+	const { current, assumptions } = value;
+
+	const lowPresent = calculate(current.outcomes, {
+		...assumptions,
+		discountRate: assumptions.uncertainty.discountRateLow,
+	}).presentImpliedValue;
+	const highPresent = calculate(current.outcomes, {
+		...assumptions,
+		discountRate: assumptions.uncertainty.discountRateHigh,
+	}).presentImpliedValue;
+	const lowPrivate = calculate(current.outcomes, {
+		...assumptions,
+		noIpoCurrentValue: assumptions.uncertainty.noIpoValueLow,
+	}).presentImpliedValue;
+	const highPrivate = calculate(current.outcomes, {
+		...assumptions,
+		noIpoCurrentValue: assumptions.uncertainty.noIpoValueHigh,
+	}).presentImpliedValue;
+
+	return (
+		<>
+			<section class="shell metric-grid">
+				<Metric
+					label={
+						config.methods.length === 1
+							? "Rai current valuation"
+							: "IPO-cap current equivalent"
+					}
+					value={formatMoney(current.presentImpliedValue, true)}
+					note={
+						config.methods.length === 1
+							? "Single-method estimate · IPO-cap current equivalent"
+							: "Public market cap based on outstanding shares"
+					}
+					accent
+				/>
+				<Metric
+					label="Conditional IPO valuation"
+					value={formatMoney(current.conditionalIpoValue)}
+					note="Assuming an IPO by the deadline"
+				/>
+				<Metric
+					label="Discounted IPO scenario"
+					value={formatMoney(current.discountedIpoValue)}
+					note={`IPO branch discounted ${current.years.toFixed(2)} years`}
+				/>
+				<Metric
+					label="Probability of IPO"
+					value={formatProbability(current.ipoProbability)}
+					note={`By ${formatDate(assumptions.expectedDate)}`}
+				/>
+			</section>
+
+			{current.warnings.map((warning) => (
+				<div class="shell alert warning">{warning}</div>
+			))}
+
+			<section class="shell section" id="sources">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Probability distribution</Eyebrow>
+						<h2>Normalized market probabilities</h2>
+					</div>
+					<p>
+						Raw binary-market prices total{" "}
+						<strong>{formatProbability(current.rawProbabilitySum)}</strong>.
+						They are normalized to a complete distribution before valuation.
+					</p>
+				</div>
+				<Distribution result={current} />
+				<details>
+					<summary>Open audit table</summary>
+					<AuditTable result={current} />
+				</details>
+			</section>
+
+			<section class="dark-section" id="calculation">
+				<div class="shell">
+					<div class="section-heading">
+						<div>
+							<Eyebrow>Calculation details</Eyebrow>
+							<h2>IPO-ladder calculation</h2>
+						</div>
+						<p>
+							All monetary values are calculated internally in millions of US
+							dollars.
+						</p>
+					</div>
+					<ol class="formula-steps">
+						<li>
+							<span>01</span>
+							<div>
+								<h3>Normalize the ladder</h3>
+								<p>
+									Each raw probability ÷{" "}
+									{formatProbability(current.rawProbabilitySum)}
+								</p>
+							</div>
+							<strong>100.0%</strong>
+						</li>
+						<li>
+							<span>02</span>
+							<div>
+								<h3>Weight IPO outcomes</h3>
+								<p>Σ conditional probability × assigned bracket value</p>
+							</div>
+							<strong>{formatMoney(current.conditionalIpoValue)}</strong>
+						</li>
+						<li>
+							<span>03</span>
+							<div>
+								<h3>Discount the future IPO branch</h3>
+								<p>
+									IPO scenario ÷ (1 +{" "}
+									{formatProbability(assumptions.discountRate)})^
+									{current.years.toFixed(2)}
+								</p>
+							</div>
+							<strong>{formatMoney(current.discountedIpoValue)}</strong>
+						</li>
+						<li>
+							<span>04</span>
+							<div>
+								<h3>Mix current-equivalent branches</h3>
+								<p>
+									IPO odds × discounted IPO cap + residual odds × current
+									private scenario value of{" "}
+									{formatMoney(assumptions.noIpoCurrentValue)}
+								</p>
+							</div>
+							<strong>{formatMoney(current.presentImpliedValue)}</strong>
+						</li>
+					</ol>
+				</div>
+			</section>
+
+			<section class="shell section split">
+				<div class="prose">
+					<Eyebrow>Assumptions</Eyebrow>
+					<h2>Configured valuation assumptions</h2>
+					<p>
+						Closed brackets use arithmetic midpoints. Open brackets and the
+						no-IPO scenario use configured values. The no-IPO value is already a
+						current private-company scenario, so it is not discounted again.
+					</p>
+					<p>
+						Assumptions as of {formatDate(assumptions.provenance.asOf)}:{" "}
+						<a
+							href={assumptions.provenance.sourceUrl}
+							target="_blank"
+							rel="noreferrer"
+						>
+							source and rationale <span aria-hidden="true">↗</span>
+						</a>
+						. {assumptions.provenance.rationale}
+					</p>
+				</div>
+				<AssumptionList assumptions={assumptions} />
+			</section>
+
+			<section class="shell section">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Sensitivity</Eyebrow>
+						<h2>One-variable sensitivity analysis</h2>
+					</div>
+					<p>
+						Each check varies one configured assumption from its base value.
+					</p>
+				</div>
+				<div class="sensitivity-grid">
+					<Metric
+						label={`${formatProbability(assumptions.uncertainty.discountRateLow)} discount rate`}
+						value={formatMoney(lowPresent)}
+					/>
+					<Metric
+						label={`${formatProbability(assumptions.uncertainty.discountRateHigh)} discount rate`}
+						value={formatMoney(highPresent)}
+					/>
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.noIpoValueLow)} no-IPO scenario`}
+						value={formatMoney(lowPrivate)}
+					/>
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.noIpoValueHigh)} no-IPO scenario`}
+						value={formatMoney(highPrivate)}
+					/>
+				</div>
+			</section>
+
+			<section class="shell section">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Source markets</Eyebrow>
+						<h2>Polymarket source quotes</h2>
+					</div>
+					<ProviderIdentity
+						id="polymarket"
+						note="Gamma API · tradable midpoint preferred"
+					/>
+				</div>
+				<div class="source-list">
+					{current.outcomes.map((outcome) => (
+						<article>
+							<div>
+								<span class="badge">{outcome.selectedMethod}</span>
+								<h3>{outcome.label}</h3>
+								<p>{outcome.sourceQuestion}</p>
+							</div>
+							<dl>
+								<div>
+									<dt>Bid / ask</dt>
+									<dd>
+										{outcome.bid == null ? "—" : formatProbability(outcome.bid)}{" "}
+										/{" "}
+										{outcome.ask == null ? "—" : formatProbability(outcome.ask)}
+									</dd>
+								</div>
+								<div>
+									<dt>Volume</dt>
+									<dd>
+										{outcome.volume == null
+											? "—"
+											: `$${Math.round(outcome.volume).toLocaleString("en-US")}`}
+									</dd>
+								</div>
+								<div>
+									<dt>Provider / fetched</dt>
+									<dd>
+										{outcome.sourceUpdatedAt
+											? formatDateTime(outcome.sourceUpdatedAt)
+											: "—"}{" "}
+										/ {formatDateTime(outcome.fetchedAt)}
+									</dd>
+								</div>
+							</dl>
+							<a href={outcome.sourceUrl} target="_blank" rel="noreferrer">
+								View market <span aria-hidden="true">↗</span>
+							</a>
+						</article>
+					))}
+				</div>
+			</section>
+
+			<section class="shell disclosure prose">
+				<Eyebrow>Important limitations</Eyebrow>
+				<h2>Scope and limitations</h2>
+				<p>
+					Prediction prices may be illiquid, stale, or distorted. Open-ended
+					brackets require judgment. First-day IPO market capitalization is not
+					intrinsic value, and this model does not account for future dilution,
+					capital raised, or operating fundamentals.
+				</p>
+				<p>
+					This estimate is not an ownership interest in {config.name}, an offer
+					to buy or sell securities, or investment advice.
+				</p>
+			</section>
+		</>
+	);
+}
+
+function ThresholdAnalysis(props: {
+	config: Company;
+	value: Extract<LoadedMethod, { kind: "threshold" }>;
+}) {
+	const { config, value } = props;
+	const { current, assumptions } = value;
+	const first = current.thresholds[0];
+	const last = current.thresholds.at(-1);
+	const lowFloor = calculateThresholds(current.thresholds, {
+		...assumptions,
+		floorValue: assumptions.uncertainty.floorValueLow,
+	}).expectedPeakValue;
+	const highFloor = calculateThresholds(current.thresholds, {
+		...assumptions,
+		floorValue: assumptions.uncertainty.floorValueHigh,
+	}).expectedPeakValue;
+	const lowTail = calculateThresholds(current.thresholds, {
+		...assumptions,
+		upperValue: assumptions.uncertainty.upperValueLow,
+	}).expectedPeakValue;
+	const highTail = calculateThresholds(current.thresholds, {
+		...assumptions,
+		upperValue: assumptions.uncertainty.upperValueHigh,
+	}).expectedPeakValue;
+
+	return (
+		<>
+			<section class="shell metric-grid">
+				<Metric
+					label="Deadline-peak current equivalent"
+					value={formatMoney(current.deadlinePeakCurrentEquivalent, true)}
+					note={`Threshold method’s input to the Rai current valuation · ${formatProbability(assumptions.growthRate)} annual bridge`}
+					accent
+				/>
+				<Metric
+					label="Expected maximum by deadline"
+					value={formatMoney(current.expectedPeakValue)}
+					note={`Maximum qualifying NPM Price through ${formatDate(assumptions.expectedDate)}`}
+				/>
+				<Metric
+					label={
+						first
+							? `Chance of at least ${formatMoney(first.value)}`
+							: "First threshold"
+					}
+					value={first ? formatProbability(first.adjustedProbability) : "—"}
+					note="Fitted cumulative probability"
+				/>
+				<Metric
+					label={
+						last
+							? `Chance of at least ${formatMoney(last.value)}`
+							: "Top threshold"
+					}
+					value={last ? formatProbability(last.adjustedProbability) : "—"}
+					note="Open upper-tail probability"
+				/>
+			</section>
+
+			{current.warnings.map((warning) => (
+				<div class="shell alert warning">{warning}</div>
+			))}
+
+			<section class="shell section" id="sources">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Implied distribution</Eyebrow>
+						<h2>Cumulative threshold distribution</h2>
+					</div>
+					<p>
+						Each contract prices the chance that {config.name} reaches at least
+						its threshold under the configured NPM Price definition. Adjacent
+						fitted probabilities are differenced to avoid double-counting.{" "}
+						<a
+							href={value.method.data.claim.rulesUrl}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Read the source rules <span aria-hidden="true">↗</span>
+						</a>
+						.
+					</p>
+				</div>
+				<div class="distribution">
+					{current.bands.map((band) => (
+						<div class="distribution-row">
+							<div class="distribution-label">
+								<strong>{band.label}</strong>
+								<span>{formatProbability(band.probability)}</span>
+							</div>
+							<div class="track" aria-hidden="true">
+								<span
+									style={`inline-size:${Math.max(band.probability * 100, 0.35)}%`}
+								/>
+							</div>
+							<div class="distribution-detail">
+								<span>{formatMoney(band.representativeValue)} assigned</span>
+								<span>{formatMoney(band.contribution)} contribution</span>
+							</div>
+						</div>
+					))}
+				</div>
+				<details>
+					<summary>Open threshold audit table</summary>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>Threshold</th>
+									<th>Source quote</th>
+									<th>Fitted</th>
+									<th>Wallets</th>
+									<th>Provider updated</th>
+								</tr>
+							</thead>
+							<tbody>
+								{current.thresholds.map((threshold) => (
+									<tr>
+										<th>{threshold.label}</th>
+										<td>{formatProbability(threshold.rawProbability)}</td>
+										<td>{formatProbability(threshold.adjustedProbability)}</td>
+										<td>
+											{threshold.participants == null
+												? "—"
+												: threshold.participants.toLocaleString("en-US")}
+										</td>
+										<td>
+											{threshold.sourceUpdatedAt
+												? formatDateTime(threshold.sourceUpdatedAt)
+												: "—"}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</details>
+			</section>
+
+			<section class="dark-section" id="calculation">
+				<div class="shell">
+					<div class="section-heading">
+						<div>
+							<Eyebrow>Calculation details</Eyebrow>
+							<h2>Threshold-curve calculation</h2>
+						</div>
+						<p>
+							The source distribution describes the highest valuation reached by
+							the deadline. The current-equivalent figure is reported separately
+							as an assumption-driven scenario.
+						</p>
+					</div>
+					<ol class="formula-steps">
+						<li>
+							<span>01</span>
+							<div>
+								<h3>Select market quotes</h3>
+								<p>
+									Use one selected Polymarket quote for each configured NPM
+									Price threshold
+								</p>
+							</div>
+							<strong>{current.thresholds.length} contracts</strong>
+						</li>
+						<li>
+							<span>02</span>
+							<div>
+								<h3>Fit a monotone curve</h3>
+								<p>
+									The chance of exceeding a higher value cannot exceed the
+									chance of exceeding a lower one
+								</p>
+							</div>
+							<strong>Equal-weight isotonic fit</strong>
+						</li>
+						<li>
+							<span>03</span>
+							<div>
+								<h3>Difference adjacent thresholds</h3>
+								<p>
+									P(band) = P(above lower) − P(above upper), then weight each
+									band
+								</p>
+							</div>
+							<strong>{formatMoney(current.expectedPeakValue)}</strong>
+						</li>
+						<li>
+							<span>04</span>
+							<div>
+								<h3>Translate the peak to current value</h3>
+								<p>
+									Peak value ÷ (1 + {formatProbability(assumptions.growthRate)}
+									)^
+									{current.years.toFixed(2)}
+								</p>
+							</div>
+							<strong>
+								{formatMoney(current.deadlinePeakCurrentEquivalent)}
+							</strong>
+						</li>
+					</ol>
+				</div>
+			</section>
+
+			<section class="shell section split">
+				<div class="prose">
+					<Eyebrow>Assumptions</Eyebrow>
+					<h2>Lower- and upper-tail assumptions</h2>
+					<p>
+						The lowest band is anchored at a known valuation floor. Closed bands
+						use midpoints, while the open upper tail needs an explicit
+						representative value.
+					</p>
+					<p>
+						Assumptions as of {formatDate(assumptions.provenance.asOf)}:{" "}
+						<a
+							href={assumptions.provenance.sourceUrl}
+							target="_blank"
+							rel="noreferrer"
+						>
+							source and rationale <span aria-hidden="true">↗</span>
+						</a>
+						. {assumptions.provenance.rationale}
+					</p>
+				</div>
+				<dl class="assumption-list">
+					<div>
+						<dt>Expected annual growth to peak</dt>
+						<dd>{formatProbability(assumptions.growthRate)}</dd>
+					</div>
+					<div>
+						<dt>Market deadline</dt>
+						<dd>{formatDate(assumptions.expectedDate)}</dd>
+					</div>
+					<div>
+						<dt>Lower valuation floor</dt>
+						<dd>{formatMoney(assumptions.floorValue)}</dd>
+					</div>
+					<div>
+						<dt>Upper-tail representative</dt>
+						<dd>{formatMoney(assumptions.upperValue)}</dd>
+					</div>
+					<div>
+						<dt>Curve constraint</dt>
+						<dd>Equal-weight non-increasing fit</dd>
+					</div>
+					<div>
+						<dt>Probability method</dt>
+						<dd>Single-source Polymarket curve</dd>
+					</div>
+				</dl>
+			</section>
+
+			<section class="shell section">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Sensitivity</Eyebrow>
+						<h2>Growth-rate and upper-tail sensitivity</h2>
+					</div>
+					<p>
+						These checks vary the distribution’s open lower and upper tails. The
+						current-equivalent bridge is an assumption-driven input to the Rai
+						current valuation, not a direct market quote.
+					</p>
+				</div>
+				<div class="sensitivity-grid">
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.floorValueLow)} lower floor`}
+						value={formatMoney(lowFloor)}
+					/>
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.floorValueHigh)} lower floor`}
+						value={formatMoney(highFloor)}
+					/>
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.upperValueLow)} upper tail`}
+						value={formatMoney(lowTail)}
+					/>
+					<Metric
+						label={`${formatMoney(assumptions.uncertainty.upperValueHigh)} upper tail`}
+						value={formatMoney(highTail)}
+					/>
+				</div>
+			</section>
+
+			<section class="shell section">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Source markets</Eyebrow>
+						<h2>Polymarket threshold contracts</h2>
+					</div>
+					<ProviderIdentity
+						id={value.method.data.provider}
+						note="Gamma and Data APIs · wallet counts are diagnostic only"
+					/>
+				</div>
+				<div class="source-list">
+					{current.thresholds.map((threshold) => (
+						<article>
+							<div>
+								<span class="badge">{threshold.selectedMethod}</span>
+								<h3>{threshold.label}</h3>
+								<p>{threshold.sourceQuestion}</p>
+							</div>
+							<dl>
+								<div>
+									<dt>Source / fitted</dt>
+									<dd>
+										{formatProbability(threshold.rawProbability)} /{" "}
+										{formatProbability(threshold.adjustedProbability)}
+									</dd>
+								</div>
+								<div>
+									<dt>Wallets / volume</dt>
+									<dd>
+										{threshold.participants == null
+											? "—"
+											: threshold.participants.toLocaleString("en-US")}{" "}
+										/{" "}
+										{threshold.volume == null
+											? "—"
+											: `$${Math.round(threshold.volume).toLocaleString("en-US")}`}
+									</dd>
+								</div>
+								<div>
+									<dt>Provider / fetched</dt>
+									<dd>
+										{threshold.sourceUpdatedAt
+											? formatDateTime(threshold.sourceUpdatedAt)
+											: "—"}{" "}
+										/ {formatDateTime(threshold.fetchedAt)}
+									</dd>
+								</div>
+							</dl>
+							<a href={threshold.sourceUrl} target="_blank" rel="noreferrer">
+								View market <span aria-hidden="true">↗</span>
+							</a>
+						</article>
+					))}
+				</div>
+			</section>
+
+			<section class="shell disclosure prose">
+				<Eyebrow>Important limitations</Eyebrow>
+				<h2>Scope and limitations</h2>
+				<p>
+					The contracts resolve on the highest qualifying non-public-market or
+					public-market valuation observed before the deadline. The estimate is
+					path-dependent and should not be read as a terminal, intrinsic, or
+					year-end or current value. Reported participants are trading wallets,
+					not verified people, and do not affect the fit. Thin markets,
+					correlated contract errors, the chosen floor, and the open upper tail
+					can all affect the result.
+				</p>
+				<p>
+					This estimate is not an ownership interest in {config.name}, an offer
+					to buy or sell securities, or investment advice.
+				</p>
+			</section>
+		</>
+	);
+}
+
+function ProviderIdentity(props: { id: string; note: string }) {
+	const provider = getProvider(props.id);
+	if (!provider) return null;
+
+	return (
+		<div class="provider-identity">
+			<a
+				href={provider.website}
+				target="_blank"
+				rel="noreferrer"
+				aria-label={`${provider.name} website`}
+			>
+				{provider.asset ? (
+					<img src={polymarket} alt="" width="36" height="36" />
+				) : null}
+				<strong>{provider.name}</strong>
+			</a>
+			<small>
+				{props.note} ·{" "}
+				<a href={provider.docs} target="_blank" rel="noreferrer">
+					API docs
+				</a>{" "}
+				·{" "}
+				<a href={provider.terms} target="_blank" rel="noreferrer">
+					terms
+				</a>
+			</small>
+		</div>
+	);
+}
+
+function MethodSources(props: { method: string }) {
+	const sources = getMethodProviders(props.method);
+
+	return (
+		<section class="method-sources" id="data-sources">
+			<Eyebrow>Data provenance</Eyebrow>
+			<h2>Data sources and permissions</h2>
+			<p>
+				Provider names identify the origin of source data. Availability reflects
+				the provider’s published terms for this use; it does not imply a
+				partnership or endorsement.
+			</p>
+			<div class="provider-grid">
+				{sources.map((provider) => (
+					<article>
+						<header>
+							<div class="provider-name">
+								{provider.asset ? (
+									<img src={polymarket} alt="" width="44" height="44" />
+								) : null}
+								<h3>{provider.name}</h3>
+							</div>
+							<span class={`provider-status ${provider.status}`}>
+								{provider.status === "active"
+									? "Active source"
+									: "Permission required"}
+							</span>
+						</header>
+						<p>{provider.description}</p>
+						<p class="provider-notice">{provider.notice}</p>
+						<nav aria-label={`${provider.name} source documentation`}>
+							<a href={provider.website} target="_blank" rel="noreferrer">
+								Provider
+							</a>
+							<a href={provider.docs} target="_blank" rel="noreferrer">
+								Data documentation
+							</a>
+							<a href={provider.terms} target="_blank" rel="noreferrer">
+								Terms
+							</a>
+							{provider.brand ? (
+								<a href={provider.brand} target="_blank" rel="noreferrer">
+									Brand assets
+								</a>
+							) : null}
+						</nav>
+					</article>
+				))}
+			</div>
+		</section>
+	);
+}
+
+export const methodologies = Route.get("/methodology", () => (
+	<Page
+		title="Valuation methodologies"
+		description="A plain-language directory of Rai’s Polymarket-based company valuation methods and their distinct measurement targets."
+	>
+		<MethodologiesPage />
+	</Page>
+));
+
+function MethodologiesPage() {
+	const applied = new Set<string>(
+		companies.flatMap((company) =>
+			company.methods.map((assignment) => assignment.method),
+		),
+	);
+	applied.add(ensemble);
+
+	return (
+		<main id="content">
+			<section class="methodology-hero">
+				<div class="shell">
+					<Eyebrow>Methodology</Eyebrow>
+					<div class="methodology-hero-grid">
+						<h1>Different contracts, one derived current estimate.</h1>
+						<div class="prose">
+							<p>
+								The IPO ladder estimates a current equivalent of future
+								first-day public capitalization. The threshold curve estimates a
+								deadline maximum and bridges it to a current equivalent.
+							</p>
+							<p>
+								Rai’s ensemble then combines those comparable current-equivalent
+								outputs with explicit method and evidence-family weights.
+							</p>
+						</div>
+					</div>
+					<dl class="methodology-stats">
+						<div>
+							<dt>Documented methods</dt>
+							<dd>{methods.length}</dd>
+						</div>
+						<div>
+							<dt>Currently applied</dt>
+							<dd>{applied.size}</dd>
+						</div>
+						<div>
+							<dt>Active data source</dt>
+							<dd>Polymarket</dd>
+						</div>
+					</dl>
+				</div>
+			</section>
+
+			<section
+				class="shell methodology-catalog"
+				aria-labelledby="method-directory"
+			>
+				<header class="methodology-catalog-heading prose">
+					<Eyebrow>Method directory</Eyebrow>
+					<h2 id="method-directory">What each method does</h2>
+					<p>
+						These summaries omit the math. Open a method for its complete
+						definition and data-source requirements.
+					</p>
+				</header>
+
+				<div class="methodology-cards">
+					{methods.map((method, i) => {
+						const companiesUsingMethod =
+							method.name === ensemble
+								? companies
+								: companies.filter((company) =>
+										company.methods.some(
+											(assignment) => assignment.method === method.name,
+										),
+									);
+						const sources = getMethodProviders(method.name);
+						const inactive =
+							method.content.frontmatter.status.startsWith("Inactive");
+
+						return (
+							<article class="methodology-card">
+								<header>
+									<span class="methodology-number">
+										{String(i + 1).padStart(2, "0")}
+									</span>
+									<span
+										class={`methodology-status ${inactive ? "inactive" : "active"}`}
+									>
+										{method.content.frontmatter.status}
+									</span>
+								</header>
+								<h2>{method.content.frontmatter.title}</h2>
+								<p>{method.content.frontmatter.summary}</p>
+								<dl>
+									<div>
+										<dt>Use</dt>
+										<dd>
+											{companiesUsingMethod.length
+												? `${companiesUsingMethod.length} company ${
+														companiesUsingMethod.length === 1
+															? "model"
+															: "models"
+													}`
+												: "Not currently assigned"}
+										</dd>
+									</div>
+									<div>
+										<dt>Sources</dt>
+										<dd>
+											{sources.length
+												? sources.map((source) => source.name).join(", ")
+												: "None configured"}
+										</dd>
+									</div>
+								</dl>
+								<methodology.Anchor
+									class="methodology-card-link"
+									params={{ method: method.name }}
+								>
+									Read the full method <span aria-hidden="true">→</span>
+								</methodology.Anchor>
+							</article>
+						);
+					})}
+				</div>
+			</section>
+
+			<section class="shell methodology-primer">
+				<div class="prose">
+					<Eyebrow>How to read the results</Eyebrow>
+					<h2>Read each result according to its target.</h2>
+				</div>
+				<ol>
+					<li>
+						<span>01</span>
+						<div>
+							<strong>Start with evidence</strong>
+							<p>Polymarket supplies contract prices and source rules.</p>
+						</div>
+					</li>
+					<li>
+						<span>02</span>
+						<div>
+							<strong>Convert to a current equivalent</strong>
+							<p>
+								Each method applies its documented time and scenario assumptions
+								before it enters the combined estimate.
+							</p>
+						</div>
+					</li>
+					<li>
+						<span>03</span>
+						<div>
+							<strong>Combine with explicit weights</strong>
+							<p>
+								Rai averages within evidence families first, then across
+								families. The input range remains visible beside the result.
+							</p>
+						</div>
+					</li>
+				</ol>
+			</section>
+		</main>
+	);
+}
+
+export const health = Route.get("/health", (c) =>
+	c.json({
+		status: "ok",
+		framework: "ovr",
+		companies: companies.length,
+		methods: methods.length,
+	}),
+);
+
+export const methodology = Route.get("/methodology/:method", (c) => {
+	const alias = new Map([
+		["polymarket-ipo", "prediction-market-ipo"],
+		[
+			"polymarket-valuation-thresholds",
+			"prediction-market-valuation-thresholds",
+		],
+	]).get(c.params.method);
+	if (alias) return c.redirect(`/methodology/${alias}`, 301);
+
+	const method = getMethod(c.params.method);
+	if (!method) {
+		c.res.status = 404;
+		return (
+			<Page title="Method not found">
+				<main id="content" class="shell empty-state">
+					<Eyebrow>404 · Methodology</Eyebrow>
+					<h1>No Markdown file matches this method.</h1>
+					<methodology.Anchor
+						class="button"
+						params={{ method: "prediction-market-ipo" }}
+					>
+						View the IPO method
+					</methodology.Anchor>
+				</main>
+			</Page>
+		);
+	}
+
+	const position = methods.indexOf(method);
+	const previous = position > 0 ? methods[position - 1] : undefined;
+	const next =
+		position < methods.length - 1 ? methods[position + 1] : undefined;
+	const entry = method.content;
+	const applied =
+		method.name === ensemble
+			? companies.length
+			: companies.filter((company) =>
+					company.methods.some(
+						(assignment) => assignment.method === method.name,
+					),
+				).length;
+
+	return (
+		<Page
+			title={entry.frontmatter.title}
+			description={entry.frontmatter.description}
+		>
+			<main id="content">
+				<section class="method-hero">
+					<div class="shell">
+						<methodologies.Anchor class="method-breadcrumb">
+							Methodology <span aria-hidden="true">/</span>{" "}
+							{entry.frontmatter.eyebrow}
+						</methodologies.Anchor>
+						<div class="method-hero-grid">
+							<div>
+								<div class="method-kicker">
+									<span class="method-status">
+										<i aria-hidden="true" />
+										{entry.frontmatter.status}
+									</span>
+									<span>{entry.frontmatter.updated}</span>
+								</div>
+								<h1>{entry.frontmatter.title}</h1>
+							</div>
+							<div class="method-abstract">
+								<p>{entry.frontmatter.description}</p>
+								<dl>
+									<div>
+										<dt>Reading time</dt>
+										<dd>{entry.frontmatter.readTime}</dd>
+									</div>
+									<div>
+										<dt>Applies to</dt>
+										<dd>
+											{applied} company {applied === 1 ? "model" : "models"}
+										</dd>
+									</div>
+								</dl>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<div class="shell method-layout">
+					<aside class="method-toc">
+						<p>On this page</p>
+						<nav aria-label="Method contents">
+							{entry.headings
+								.filter((heading) => heading.level === 2 || heading.level === 3)
+								.map((heading) => (
+									<methodology.Anchor
+										class={heading.level === 3 ? "toc-sub" : undefined}
+										params={{ method: method.name }}
+										hash={heading.id}
+									>
+										{heading.name}
+									</methodology.Anchor>
+								))}
+							<methodology.Anchor
+								params={{ method: method.name }}
+								hash="data-sources"
+							>
+								Data sources and permissions
+							</methodology.Anchor>
+						</nav>
+						<div>
+							<span>Method ID</span>
+							<strong>{method.name}</strong>
+						</div>
+					</aside>
+
+					<article class="method-prose prose">
+						{Render.html(entry.html)}
+						<MethodSources method={method.name} />
+					</article>
+				</div>
+
+				<section class="shell method-navigation">
+					{previous ? (
+						<methodology.Anchor params={{ method: previous.name }}>
+							<span>Previous method</span>
+							<strong>{previous.content.frontmatter.title}</strong>
+						</methodology.Anchor>
+					) : (
+						<methodologies.Anchor>
+							<span>All methods</span>
+							<strong>Methodology index</strong>
+						</methodologies.Anchor>
+					)}
+					{next ? (
+						<methodology.Anchor params={{ method: next.name }}>
+							<span>Next method</span>
+							<strong>{next.content.frontmatter.title}</strong>
+						</methodology.Anchor>
+					) : (
+						<dashboard.Anchor>
+							<span>Applied estimates</span>
+							<strong>Company valuations</strong>
+						</dashboard.Anchor>
+					)}
+				</section>
+			</main>
+		</Page>
+	);
+});
