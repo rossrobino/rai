@@ -231,7 +231,10 @@ export async function fetchCompanyMarkets(method: PredictionIpoMethod) {
 }
 
 /** Fetches one semantically declared Polymarket threshold curve. */
-export async function fetchThresholdMarkets(method: PredictionThresholdMethod) {
+export async function fetchThresholdMarkets(
+	method: PredictionThresholdMethod,
+	participants = true,
+) {
 	const { fetchedAt, values } = await fetchEvents(method.data.events);
 	const rules = values.find(
 		(event) => event.url === method.data.claim.rulesUrl,
@@ -288,7 +291,9 @@ export async function fetchThresholdMarkets(method: PredictionThresholdMethod) {
 				lastTrade: selected.lastTrade,
 				volume: number(market.volume),
 				liquidity: number(market.liquidity),
-				participants: await fetchParticipants(conditionId).catch(() => null),
+				participants: participants
+					? await fetchParticipants(conditionId).catch(() => null)
+					: null,
 				sourceUrl: `${event.url}/${slug}`,
 				sourceUpdatedAt: selected.sourceUpdatedAt ?? event.updatedAt,
 				fetchedAt,

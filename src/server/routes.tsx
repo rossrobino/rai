@@ -149,7 +149,10 @@ function HomePage() {
 						<dashboard.Anchor class="button">View dashboard</dashboard.Anchor>
 					</div>
 					<div class="home-preview-card">
-						<CompanyMarketCard config={preview} load={resolveBoard(preview)} />
+						<CompanyMarketCard
+							config={preview}
+							load={resolveBoard(preview, false)}
+						/>
 					</div>
 				</section>
 			) : null}
@@ -170,7 +173,7 @@ function DashboardPage() {
 	const assignments = companies.flatMap((config) => config.methods);
 	const board = companies.map((config) => ({
 		config,
-		load: resolveBoard(config),
+		load: resolveBoard(config, false),
 	}));
 
 	return (
@@ -255,7 +258,17 @@ function methodTitle(method: CompanyMethod) {
 }
 
 function methodLabel(value: LoadedMethod) {
-	return value.kind === "ipo" ? "IPO ladder" : "Threshold curve";
+	if (value.kind === "threshold") return "Threshold curve";
+	const year = value.assumptions.expectedDate.slice(0, 4);
+	return value.method.id.includes("higher")
+		? `${year} higher-strike IPO`
+		: `${year} IPO ladder`;
+}
+
+function methodHeading(value: LoadedMethod) {
+	if (value.kind === "threshold") return methodTitle(value.method);
+	const year = value.assumptions.expectedDate.slice(0, 4);
+	return `${methodTitle(value.method)} — ${year}${value.method.id.includes("higher") ? " higher-strike series" : ""}`;
 }
 
 function methodSummary(method: CompanyMethod) {
@@ -306,9 +319,10 @@ function formatDifference(value: number, total: number) {
 async function loadMethod(
 	_config: Company,
 	method: CompanyMethod,
+	participants = true,
 ): Promise<LoadedMethod> {
 	if (method.method === "prediction-market-valuation-thresholds") {
-		const thresholds = await fetchThresholdMarkets(method);
+		const thresholds = await fetchThresholdMarkets(method, participants);
 		const current = calculateThresholds(thresholds, method.assumptions);
 		return {
 			kind: "threshold",
@@ -330,12 +344,14 @@ async function loadMethod(
 	};
 }
 
-function companyLoader(config: Company) {
+function companyLoader(config: Company, participants = true) {
 	const cache = new Map<string, Promise<LoadedMethod>>();
 	const load = (method: CompanyMethod) => {
 		const found = cache.get(method.id);
 		if (found) return found;
-		const request = Promise.resolve().then(() => loadMethod(config, method));
+		const request = Promise.resolve().then(() =>
+			loadMethod(config, method, participants),
+		);
 		cache.set(method.id, request);
 		return request;
 	};
@@ -454,8 +470,8 @@ export const observation = Route.get(
 	},
 );
 
-async function loadBoard(config: Company) {
-	const load = companyLoader(config);
+async function loadBoard(config: Company, participants = true) {
+	const load = companyLoader(config, participants);
 	const results = await Promise.all(
 		config.methods.map(async (method) => {
 			try {
@@ -490,9 +506,9 @@ async function loadBoard(config: Company) {
 	};
 }
 
-async function resolveBoard(config: Company) {
+async function resolveBoard(config: Company, participants = true) {
 	try {
-		return { value: await loadBoard(config), error: null };
+		return { value: await loadBoard(config, participants), error: null };
 	} catch (error) {
 		return { value: null, error };
 	}
@@ -589,9 +605,7 @@ async function CompanyMarketValue(props: {
 			<div class="valuation-card-signals">
 				{loaded.map((value) => (
 					<div class="valuation-card-signal">
-						<span>
-							{value.kind === "ipo" ? "IPO ladder" : "Threshold curve"}
-						</span>
+						<span>{methodLabel(value)}</span>
 						<b>{formatMoney(valuationValue(value), true)}</b>
 					</div>
 				))}
@@ -769,7 +783,7 @@ async function CompanyMethods(props: {
 						>
 							<span>{String(i + 1).padStart(2, "0")}</span>
 							<div>
-								<strong>{methodTitle(value.method)}</strong>
+								<strong>{methodHeading(value)}</strong>
 								<small>
 									{formatMoney(valuationValue(value), true)} ·{" "}
 									{formatProbability(weight)} ensemble weight
@@ -794,9 +808,9 @@ async function CompanyMethods(props: {
 								Method {String(i + 1).padStart(2, "0")} ·{" "}
 								{value.method.family.replaceAll("-", " ")}
 							</Eyebrow>
-							<h2>{methodTitle(value.method)}</h2>
+							<h2>{methodHeading(value)}</h2>
 							<p>{methodSummary(value.method)}</p>
-							<nav aria-label={`${methodTitle(value.method)} resources`}>
+							<nav aria-label={`${methodHeading(value)} resources`}>
 								<methodology.Anchor params={{ method: value.method.method }}>
 									Read methodology <span aria-hidden="true">↗</span>
 								</methodology.Anchor>

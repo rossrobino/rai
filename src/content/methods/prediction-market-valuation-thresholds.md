@@ -19,7 +19,7 @@ The active contracts resolve using Polymarket’s NPM Price definition through D
 
 <aside class="method-note">
 <strong>Current implementation</strong>
-<p>Rai uses only configured Polymarket “HIGH” contracts for Anthropic, OpenAI, and Perplexity. It verifies that each fetched event and market refers to the configured NPM Price claim and deadline before using a quote.</p>
+<p>Rai uses only configured Polymarket “HIGH” contracts. It verifies that each fetched event and market refers to the configured NPM Price claim and deadline before using a quote. Resolved thresholds and contracts without a usable quote are excluded from new company configurations.</p>
 </aside>
 
 ## 1. Select one quote for each threshold

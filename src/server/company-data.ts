@@ -87,6 +87,145 @@ function thresholdClaim(slug: string) {
 	};
 }
 
+function thresholdCompany(value: {
+	id: string;
+	name: string;
+	code: string;
+	number: string;
+	sector: string;
+	event: string;
+	floorValue: number;
+	upperValue: number;
+	thresholds: Array<[string, number]>;
+}) {
+	const url = `https://polymarket.com/event/${value.event}`;
+	return {
+		id: value.id,
+		slug: value.id,
+		name: value.name,
+		code: value.code,
+		number: value.number,
+		sector: value.sector,
+		description: `Polymarket provides an NPM Price threshold curve for ${value.name}, measuring the maximum qualifying valuation reached through December 31, 2026.`,
+		methods: [
+			{
+				id: "valuation-high-2026",
+				method: "prediction-market-valuation-thresholds",
+				family: "prediction-market",
+				familyWeight: 1,
+				weight: 1,
+				target: thresholdTarget,
+				storage: "live",
+				assumptions: thresholdAssumptions({
+					growthRate: 0.1,
+					expectedDate: "2026-12-31",
+					floorValue: value.floorValue,
+					upperValue: value.upperValue,
+					asOf: "2026-07-30T00:00:00.000Z",
+					sourceUrl: url,
+				}),
+				data: {
+					provider: "polymarket",
+					events: [
+						{
+							id: "main",
+							slug: value.event,
+							url,
+							api: `https://gamma-api.polymarket.com/events/slug/${value.event}`,
+						},
+					],
+					thresholds: value.thresholds.map(([sourceTitle, threshold], i) => ({
+						event: "main",
+						sourceTitle,
+						key: `over-${threshold}`,
+						label: `${sourceTitle.slice(1)} or higher`,
+						value: threshold,
+						sortOrder: i + 1,
+					})),
+					claim: thresholdClaim(value.event),
+				},
+			},
+		],
+	};
+}
+
+function ipoMethod(value: {
+	id: string;
+	weight: number;
+	event: string;
+	expectedDate: string;
+	lowerValue: number;
+	upperValue: number;
+	noIpoCurrentValue: number;
+	asOf: string;
+	upperKey: string;
+	noIpoTitle: string;
+	ranges: Array<{
+		sourceTitle: string;
+		key: string;
+		label: string;
+		lower: number | null;
+		upper: number | null;
+	}>;
+}) {
+	const url = `https://polymarket.com/event/${value.event}`;
+	return {
+		id: value.id,
+		method: "prediction-market-ipo",
+		family: "prediction-market",
+		familyWeight: 1,
+		weight: value.weight,
+		target: ipoTarget,
+		storage: "live",
+		upperKey: value.upperKey,
+		assumptions: ipoAssumptions({
+			discountRate: 0.1,
+			expectedDate: value.expectedDate,
+			lowerValue: value.lowerValue,
+			upperValue: value.upperValue,
+			noIpoCurrentValue: value.noIpoCurrentValue,
+			asOf: value.asOf,
+			sourceUrl: url,
+		}),
+		data: {
+			provider: "polymarket",
+			events: [
+				{
+					id: "main",
+					slug: value.event,
+					url,
+					api: `https://gamma-api.polymarket.com/events/slug/${value.event}`,
+				},
+			],
+			outcomes: [
+				...value.ranges.map((range, i) => ({
+					event: "main",
+					...range,
+					kind: "range",
+					representativeValue:
+						range.lower == null
+							? value.lowerValue
+							: range.upper == null
+								? value.upperValue
+								: (range.lower + range.upper) / 2,
+					sortOrder: i + 1,
+				})),
+				{
+					event: "main",
+					sourceTitle: value.noIpoTitle,
+					key: "no-ipo",
+					label: "No IPO by deadline",
+					kind: "no_ipo",
+					lower: null,
+					upper: null,
+					representativeValue: null,
+					sortOrder: value.ranges.length + 1,
+				},
+			],
+		},
+	};
+}
+
 export const companyData = [
 	{
 		id: "anthropic",
@@ -96,14 +235,14 @@ export const companyData = [
 		number: "01",
 		sector: "Artificial intelligence",
 		description:
-			"Polymarket provides two distinct Anthropic signals: an IPO-capitalization scenario and a maximum qualifying valuation by deadline.",
+			"Polymarket provides two IPO-capitalization ladders for Anthropic plus a maximum qualifying valuation curve by deadline.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
 				method: "prediction-market-ipo",
 				family: "prediction-market",
 				familyWeight: 1,
-				weight: 1,
+				weight: 0.5,
 				target: ipoTarget,
 				storage: "live",
 				upperKey: "over-1p8t",
@@ -258,6 +397,83 @@ export const companyData = [
 					],
 				},
 			},
+			ipoMethod({
+				id: "ipo-closing-higher-2027",
+				weight: 0.5,
+				event: "anthropic-ipo-closing-market-cap-higher-strikes",
+				expectedDate: "2027-12-31",
+				lowerValue: 1_000_000,
+				upperValue: 3_500_000,
+				noIpoCurrentValue: 965_000,
+				asOf: "2026-07-30T00:00:00.000Z",
+				upperKey: "over-3t",
+				noIpoTitle: "No IPO by December 31, 2027",
+				ranges: [
+					{
+						sourceTitle: "<$1.25T",
+						key: "under-1p25t",
+						label: "Below $1.25T",
+						lower: null,
+						upper: 1_250_000,
+					},
+					{
+						sourceTitle: "$1.25–$1.5T",
+						key: "1p25t-1p5t",
+						label: "$1.25T–$1.5T",
+						lower: 1_250_000,
+						upper: 1_500_000,
+					},
+					{
+						sourceTitle: "$1.5–$1.75T",
+						key: "1p5t-1p75t",
+						label: "$1.5T–$1.75T",
+						lower: 1_500_000,
+						upper: 1_750_000,
+					},
+					{
+						sourceTitle: "$1.75–$2.0T",
+						key: "1p75t-2t",
+						label: "$1.75T–$2T",
+						lower: 1_750_000,
+						upper: 2_000_000,
+					},
+					{
+						sourceTitle: "$2.0–$2.25T",
+						key: "2t-2p25t",
+						label: "$2T–$2.25T",
+						lower: 2_000_000,
+						upper: 2_250_000,
+					},
+					{
+						sourceTitle: "$2.25–$2.5T",
+						key: "2p25t-2p5t",
+						label: "$2.25T–$2.5T",
+						lower: 2_250_000,
+						upper: 2_500_000,
+					},
+					{
+						sourceTitle: "$2.5–$2.75T",
+						key: "2p5t-2p75t",
+						label: "$2.5T–$2.75T",
+						lower: 2_500_000,
+						upper: 2_750_000,
+					},
+					{
+						sourceTitle: "$2.75–$3.0T",
+						key: "2p75t-3t",
+						label: "$2.75T–$3T",
+						lower: 2_750_000,
+						upper: 3_000_000,
+					},
+					{
+						sourceTitle: "$3.0T+",
+						key: "over-3t",
+						label: "Above $3T",
+						lower: 3_000_000,
+						upper: null,
+					},
+				],
+			}),
 			{
 				id: "valuation-high-2026",
 				method: "prediction-market-valuation-thresholds",
@@ -380,14 +596,14 @@ export const companyData = [
 		number: "02",
 		sector: "Artificial intelligence",
 		description:
-			"Polymarket provides two distinct OpenAI signals: an IPO-capitalization scenario and a maximum qualifying valuation by deadline.",
+			"Polymarket provides two IPO-capitalization horizons for OpenAI plus a maximum qualifying valuation curve by deadline.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
 				method: "prediction-market-ipo",
 				family: "prediction-market",
 				familyWeight: 1,
-				weight: 1,
+				weight: 0.5,
 				target: ipoTarget,
 				storage: "live",
 				upperKey: "over-1p5t",
@@ -492,6 +708,62 @@ export const companyData = [
 					],
 				},
 			},
+			ipoMethod({
+				id: "ipo-closing-2026",
+				weight: 0.5,
+				event: "openai-ipo-closing-market-cap",
+				expectedDate: "2026-12-31",
+				lowerValue: 400_000,
+				upperValue: 1_750_000,
+				noIpoCurrentValue: 852_000,
+				asOf: "2026-07-30T00:00:00.000Z",
+				upperKey: "over-1p5t",
+				noIpoTitle: "No IPO by December 31, 2026",
+				ranges: [
+					{
+						sourceTitle: "<500B",
+						key: "under-500b",
+						label: "Below $500B",
+						lower: null,
+						upper: 500_000,
+					},
+					{
+						sourceTitle: "500–750B",
+						key: "500b-750b",
+						label: "$500B–$750B",
+						lower: 500_000,
+						upper: 750_000,
+					},
+					{
+						sourceTitle: "750B–1T",
+						key: "750b-1t",
+						label: "$750B–$1T",
+						lower: 750_000,
+						upper: 1_000_000,
+					},
+					{
+						sourceTitle: "1T–1.25T",
+						key: "1t-1p25t",
+						label: "$1T–$1.25T",
+						lower: 1_000_000,
+						upper: 1_250_000,
+					},
+					{
+						sourceTitle: "1.25T–1.5T",
+						key: "1p25t-1p5t",
+						label: "$1.25T–$1.5T",
+						lower: 1_250_000,
+						upper: 1_500_000,
+					},
+					{
+						sourceTitle: "1.5T+",
+						key: "over-1p5t",
+						label: "Above $1.5T",
+						lower: 1_500_000,
+						upper: null,
+					},
+				],
+			}),
 			{
 				id: "valuation-high-2026",
 				method: "prediction-market-valuation-thresholds",
@@ -1230,4 +1502,147 @@ export const companyData = [
 			},
 		],
 	},
+	thresholdCompany({
+		id: "bytedance",
+		name: "ByteDance",
+		code: "BYTEDANCE",
+		number: "07",
+		sector: "Consumer internet",
+		event: "will-bytedances-valuation-hit-by-december-31-20260701011753589",
+		floorValue: 550_000,
+		upperValue: 2_000_000,
+		thresholds: [
+			["↑$650B", 650_000],
+			["↑$700B", 700_000],
+			["↑$800B", 800_000],
+			["↑$900B", 900_000],
+			["↑$1.0T", 1_000_000],
+			["↑$1.25T", 1_250_000],
+			["↑$1.5T", 1_500_000],
+		],
+	}),
+	thresholdCompany({
+		id: "stripe",
+		name: "Stripe",
+		code: "STRIPE",
+		number: "08",
+		sector: "Financial technology",
+		event: "will-stripes-valuation-hit-by-december-31",
+		floorValue: 170_000,
+		upperValue: 600_000,
+		thresholds: [
+			["↑$190B", 190_000],
+			["↑$200B", 200_000],
+			["↑$225B", 225_000],
+			["↑$250B", 250_000],
+			["↑$300B", 300_000],
+			["↑$400B", 400_000],
+			["↑$500B", 500_000],
+		],
+	}),
+	thresholdCompany({
+		id: "anduril",
+		name: "Anduril",
+		code: "ANDURIL",
+		number: "09",
+		sector: "Defense technology",
+		event: "will-andurils-valuation-hit-by-december-31",
+		floorValue: 100_000,
+		upperValue: 250_000,
+		thresholds: [
+			["↑$110B", 110_000],
+			["↑$125B", 125_000],
+			["↑$150B", 150_000],
+			["↑$175B", 175_000],
+			["↑$200B", 200_000],
+		],
+	}),
+	thresholdCompany({
+		id: "kraken",
+		name: "Kraken",
+		code: "KRAKEN",
+		number: "10",
+		sector: "Cryptocurrency",
+		event: "will-krakens-valuation-hit-by-december-31",
+		floorValue: 10_000,
+		upperValue: 30_000,
+		thresholds: [
+			["↑$12.5B", 12_500],
+			["↑$15B", 15_000],
+			["↑$17.5B", 17_500],
+			["↑$20B", 20_000],
+			["↑$22.5B", 22_500],
+			["↑$25B", 25_000],
+		],
+	}),
+	thresholdCompany({
+		id: "databricks",
+		name: "Databricks",
+		code: "DATABRICKS",
+		number: "11",
+		sector: "Data and artificial intelligence",
+		event: "will-databricks-valuation-hit-by-december-31",
+		floorValue: 170_000,
+		upperValue: 350_000,
+		thresholds: [
+			["↑$180B", 180_000],
+			["↑$190B", 190_000],
+			["↑$200B", 200_000],
+			["↑$225B", 225_000],
+			["↑$250B", 250_000],
+			["↑$300B", 300_000],
+		],
+	}),
+	thresholdCompany({
+		id: "epic-games",
+		name: "Epic Games",
+		code: "EPIC GAMES",
+		number: "12",
+		sector: "Interactive entertainment",
+		event: "will-epic-games-valuation-hit-by-december-31",
+		floorValue: 12_500,
+		upperValue: 35_000,
+		thresholds: [
+			["↑$13.5B", 13_500],
+			["↑$14B", 14_000],
+			["↑$15B", 15_000],
+			["↑$17.5B", 17_500],
+			["↑$20B", 20_000],
+			["↑$25B", 25_000],
+			["↑$30B", 30_000],
+		],
+	}),
+	thresholdCompany({
+		id: "neuralink",
+		name: "Neuralink",
+		code: "NEURALINK",
+		number: "13",
+		sector: "Neurotechnology",
+		event: "will-neuralinks-valuation-hit-by-december-31",
+		floorValue: 45_000,
+		upperValue: 125_000,
+		thresholds: [
+			["↑$50B", 50_000],
+			["↑$60B", 60_000],
+			["↑$75B", 75_000],
+			["↑$100B", 100_000],
+		],
+	}),
+	thresholdCompany({
+		id: "canva",
+		name: "Canva",
+		code: "CANVA",
+		number: "14",
+		sector: "Design software",
+		event: "will-canvas-valuation-hit-by-december-31",
+		floorValue: 40_000,
+		upperValue: 125_000,
+		thresholds: [
+			["↑$45B", 45_000],
+			["↑$50B", 50_000],
+			["↑$60B", 60_000],
+			["↑$75B", 75_000],
+			["↑$100B", 100_000],
+		],
+	}),
 ];

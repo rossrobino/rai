@@ -21,7 +21,7 @@ For the MVP, the component inputs come from Polymarket. The IPO ladder produces 
 
 <aside class="method-note">
 <strong>Current implementation</strong>
-<p>All active inputs belong to one prediction-market evidence family. Their configured method weights are equal, so companies with two available methods use their arithmetic mean.</p>
+<p>All active inputs belong to one prediction-market evidence family. Distinct valuation methods receive equal total weight. When Polymarket provides more than one closely related IPO ladder for the same company, Rai splits the IPO method’s weight across those ladders so additional contract coverage does not give IPO evidence more influence than the independent threshold curve.</p>
 </aside>
 
 ## 1. Produce comparable inputs
@@ -44,7 +44,7 @@ $$
 
 Normalizing inside the family prevents a family from gaining influence merely because it contains more methods.
 
-If every active method in the family has weight 1, this is an arithmetic mean.
+If every distinct valuation method has equal total weight, this is an arithmetic mean across methods. Multiple correlated contract sets for one method divide that method’s allocation rather than creating additional weight.
 
 ## 3. Combine evidence families
 
@@ -93,7 +93,7 @@ It is not a financing price, an ownership transaction, intrinsic value, or inves
 ## Limitations
 
 - The active methods can share market participants and narrative information, so they are not statistically independent.
-- Equal weights are a transparent MVP rule, not an empirically calibrated claim of equal forecasting accuracy.
+- Equal total method weights are a transparent MVP rule, not an empirically calibrated claim of equal forecasting accuracy.
 - The threshold current-equivalent input depends on an explicit growth-rate bridge.
 - IPO capitalization and provider-defined NPM Price do not use identical capitalization definitions.
 - Open-ended outcome brackets and valuation tails require representative-value assumptions.

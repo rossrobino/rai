@@ -13,7 +13,22 @@ test("OVR schema validates the company catalog", () => {
 	assert.equal(result.issues, undefined);
 	assert.deepEqual(
 		companies.map((company) => company.slug),
-		["anthropic", "openai", "perplexity", "oura", "strava", "discord"],
+		[
+			"anthropic",
+			"openai",
+			"perplexity",
+			"oura",
+			"strava",
+			"discord",
+			"bytedance",
+			"stripe",
+			"anduril",
+			"kraken",
+			"databricks",
+			"epic-games",
+			"neuralink",
+			"canva",
+		],
 	);
 	assert.ok(
 		companies.every(
@@ -54,6 +69,25 @@ test("a company rejects a zero total method weight", () => {
 	});
 
 	assert.ok(result.issues);
+});
+
+test("correlated IPO ladders split one method allocation", () => {
+	for (const slug of ["anthropic", "openai"]) {
+		const company = companies.find((value) => value.slug === slug);
+		assert.ok(company);
+
+		const ipoWeight = company.methods
+			.filter((method) => method.method === "prediction-market-ipo")
+			.reduce((sum, method) => sum + method.weight, 0);
+		const thresholdWeight = company.methods
+			.filter(
+				(method) => method.method === "prediction-market-valuation-thresholds",
+			)
+			.reduce((sum, method) => sum + method.weight, 0);
+
+		assert.equal(ipoWeight, 1);
+		assert.equal(thresholdWeight, 1);
+	}
 });
 
 test("every company has one complete, contiguous IPO ladder", () => {
@@ -117,7 +151,19 @@ test("valuation thresholds are strictly ordered with explicit tails", () => {
 	);
 	assert.deepEqual(
 		assigned.map(({ company }) => company.slug),
-		["anthropic", "openai", "perplexity"],
+		[
+			"anthropic",
+			"openai",
+			"perplexity",
+			"bytedance",
+			"stripe",
+			"anduril",
+			"kraken",
+			"databricks",
+			"epic-games",
+			"neuralink",
+			"canva",
+		],
 	);
 
 	for (const { company, method } of assigned) {
