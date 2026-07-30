@@ -6,6 +6,10 @@ const css = await readFile(
 	new URL("../src/client/+style.css", import.meta.url),
 	"utf8",
 );
+const routes = await readFile(
+	new URL("../src/server/routes.tsx", import.meta.url),
+	"utf8",
+);
 
 test("the project theme extends UICO and supports both color schemes", () => {
 	assert.ok(
@@ -37,6 +41,23 @@ test("numeric text uses tabular figures throughout the document", () => {
 	assert.match(
 		css,
 		/@layer utilities\s*\{\s*:where\(\*\)\s*\{[^}]*font-variant-numeric:\s*tabular-nums;/s,
+	);
+});
+
+test("company tiles use an accessible cross-document view transition", () => {
+	assert.match(
+		css,
+		/@media \(prefers-reduced-motion: no-preference\)\s*\{[\s\S]*?@view-transition\s*\{\s*navigation:\s*auto;/,
+	);
+	assert.match(
+		css,
+		/::view-transition-group\(\*\)\s*\{[^}]*animation-duration:\s*var\(--motion-view\);[^}]*animation-timing-function:\s*var\(--ease-in-out\);/s,
+	);
+	assert.equal(
+		routes.match(
+			/style={`view-transition-name:\$\{companyTransition\([^)]*\)\}`}/g,
+		)?.length,
+		2,
 	);
 });
 

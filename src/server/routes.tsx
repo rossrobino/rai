@@ -511,6 +511,10 @@ function sourceMode(config: Company) {
 	return { label: "Mixed sources", class: "mixed" };
 }
 
+function companyTransition(config: Company) {
+	return `rai-company-${config.slug}`;
+}
+
 function CompanyMarketCard(props: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
@@ -522,6 +526,7 @@ function CompanyMarketCard(props: {
 		<company.Anchor
 			class="valuation-card market-card"
 			params={{ name: config.slug }}
+			style={`view-transition-name:${companyTransition(config)}`}
 		>
 			<div class="valuation-card-top">
 				<span class={`status ${mode.class}`}>
@@ -606,17 +611,32 @@ async function CompanyMarketValue(props: {
 	);
 }
 
-async function CompanyValuationSummary(props: {
+function CompanyValuationSummary(props: {
+	config: Company;
+	load: ReturnType<typeof resolveBoard>;
+}) {
+	return (
+		<section
+			class="shell company-valuation"
+			aria-label={`${props.config.name} current valuation`}
+			style={`view-transition-name:${companyTransition(props.config)}`}
+		>
+			<CompanyValuationValue {...props} />
+		</section>
+	);
+}
+
+async function CompanyValuationValue(props: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
 }) {
 	const result = await props.load;
 	if (!result.value) {
 		return (
-			<section class="shell alert warning">
+			<p class="company-valuation-unavailable">
 				The current valuation is temporarily unavailable. The configured methods
 				remain available for inspection.
-			</section>
+			</p>
 		);
 	}
 
@@ -628,10 +648,7 @@ async function CompanyValuationSummary(props: {
 	);
 
 	return (
-		<section
-			class="shell company-valuation"
-			aria-label={`${props.config.name} current valuation`}
-		>
+		<>
 			<div>
 				<Eyebrow>Rai current valuation</Eyebrow>
 				<strong>{formatMoney(estimate.value, true)}</strong>
@@ -716,7 +733,7 @@ async function CompanyValuationSummary(props: {
 					</p>
 				) : null}
 			</div>
-		</section>
+		</>
 	);
 }
 

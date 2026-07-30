@@ -3,6 +3,17 @@
 
 @layer theme, base, components, utilities;
 
+@media (prefers-reduced-motion: no-preference) {
+	@view-transition {
+		navigation: auto;
+	}
+
+	::view-transition-group(*) {
+		animation-duration: var(--motion-view);
+		animation-timing-function: var(--ease-in-out);
+	}
+}
+
 @layer theme {
 	:root {
 		color-scheme: light dark;
@@ -91,8 +102,10 @@
 			"SFMono-Regular", Consolas, "Liberation Mono", monospace;
 		--font-mono: var(--font-family-mono);
 		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+		--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 		--motion-fast: 120ms;
 		--motion-medium: 180ms;
+		--motion-view: 260ms;
 	}
 }
 
@@ -899,6 +912,12 @@
 		grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.75fr);
 		margin-block-start: 2rem;
 		padding: clamp(1.5rem, 4vw, 3.5rem);
+	}
+
+	.company-valuation-unavailable {
+		color: var(--ink-muted);
+		grid-column: 1 / -1;
+		margin: 0;
 	}
 
 	.company-valuation .eyebrow {
