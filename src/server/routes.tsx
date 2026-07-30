@@ -61,6 +61,10 @@ function Page(props: {
 	return <Layout {...props} navigation={<Navigation />} />;
 }
 
+function plural(count: number, singular: string, multiple = `${singular}s`) {
+	return count === 1 ? singular : multiple;
+}
+
 export const home = Route.get("/", () => (
 	<Page
 		title="Private-company valuations from market data"
@@ -78,7 +82,8 @@ function HomePage() {
 			<section class="hero hero-solo shell">
 				<div class="hero-copy">
 					<Eyebrow>
-						Rai · private-market research · {companies.length} companies
+						Rai · private-market research · {companies.length}{" "}
+						{plural(companies.length, "company", "companies")}
 					</Eyebrow>
 					<h1>
 						The crowd’s view, <em>priced into a valuation.</em>
@@ -103,7 +108,10 @@ function HomePage() {
 					<span>LIVE SOURCES</span>
 					<b>POLYMARKET</b>
 					<span>·</span>
-					<b>{companies.length} COMPANIES</b>
+					<b>
+						{companies.length}{" "}
+						{plural(companies.length, "COMPANY", "COMPANIES")}
+					</b>
 					<span>·</span>
 					<b>PUBLIC MARKET LINKS</b>
 				</div>
@@ -171,6 +179,8 @@ export const dashboard = Route.get("/dashboard", () => (
 
 function DashboardPage() {
 	const assignments = companies.flatMap((config) => config.methods);
+	const live = assignments.filter((method) => method.storage === "live").length;
+	const families = new Set(assignments.map((method) => method.family)).size;
 	const board = companies.map((config) => ({
 		config,
 		load: resolveBoard(config, false),
@@ -189,22 +199,26 @@ function DashboardPage() {
 				</div>
 				<dl class="dashboard-stats">
 					<div>
-						<dt>Companies</dt>
+						<dt>{plural(companies.length, "Company", "Companies")}</dt>
 						<dd>{companies.length}</dd>
 					</div>
 					<div>
-						<dt>Method assignments</dt>
+						<dt>
+							{plural(
+								assignments.length,
+								"Method assignment",
+								"Method assignments",
+							)}
+						</dt>
 						<dd>{assignments.length}</dd>
 					</div>
 					<div>
-						<dt>Live assignments</dt>
-						<dd>
-							{assignments.filter((method) => method.storage === "live").length}
-						</dd>
+						<dt>{plural(live, "Live assignment", "Live assignments")}</dt>
+						<dd>{live}</dd>
 					</div>
 					<div>
-						<dt>Evidence families</dt>
-						<dd>{new Set(assignments.map((method) => method.family)).size}</dd>
+						<dt>{plural(families, "Evidence family", "Evidence families")}</dt>
+						<dd>{families}</dd>
 					</div>
 				</dl>
 			</section>
@@ -1625,7 +1639,7 @@ function MethodologiesPage() {
 					</div>
 					<dl class="methodology-stats">
 						<div>
-							<dt>Documented methods</dt>
+							<dt>Documented {plural(methods.length, "method", "methods")}</dt>
 							<dd>{methods.length}</dd>
 						</div>
 						<div>
