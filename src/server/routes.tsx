@@ -4,7 +4,6 @@ import {
 	companies,
 	getCompany,
 	getCompanyMethod,
-	getCompanyMethods,
 	type Company,
 	type CompanyMethod,
 } from "@/server/companies";
@@ -255,6 +254,10 @@ function methodTitle(method: CompanyMethod) {
 	return getMethod(method.method)?.content.frontmatter.title ?? method.method;
 }
 
+function methodLabel(value: LoadedMethod) {
+	return value.kind === "ipo" ? "IPO ladder" : "Threshold curve";
+}
+
 function methodSummary(method: CompanyMethod) {
 	switch (method.method) {
 		case "prediction-market-ipo":
@@ -262,6 +265,42 @@ function methodSummary(method: CompanyMethod) {
 		case "prediction-market-valuation-thresholds":
 			return `${getProvider(method.data.provider)?.name ?? method.data.provider} · ${method.data.thresholds.length} thresholds · maximum NPM Price by ${formatDate(method.data.claim.deadline)}`;
 	}
+}
+
+function methodWeights(loaded: LoadedMethod[]) {
+	const families = new Map<string, { weight: number; methods: number }>();
+	for (const value of loaded) {
+		if (value.method.familyWeight === 0 || value.method.weight === 0) continue;
+		const family = families.get(value.method.family);
+		if (family) {
+			family.methods += value.method.weight;
+		} else {
+			families.set(value.method.family, {
+				weight: value.method.familyWeight,
+				methods: value.method.weight,
+			});
+		}
+	}
+	const total = [...families.values()].reduce(
+		(sum, family) => sum + family.weight,
+		0,
+	);
+
+	return loaded.map((value) => {
+		const family = families.get(value.method.family);
+		return {
+			value,
+			weight:
+				family && total > 0
+					? (family.weight / total) * (value.method.weight / family.methods)
+					: 0,
+		};
+	});
+}
+
+function formatDifference(value: number, total: number) {
+	const difference = total === 0 ? 0 : value / total - 1;
+	return `${difference > 0 ? "+" : ""}${formatProbability(difference)}`;
 }
 
 async function loadMethod(
@@ -320,7 +359,6 @@ export const company = Route.get("/companies/:name", (c) => {
 		);
 	}
 
-	const assigned = getCompanyMethods(config);
 	const view = c.url.searchParams.get("view");
 	if (view) {
 		c.res.status = 404;
@@ -336,93 +374,43 @@ export const company = Route.get("/companies/:name", (c) => {
 			</Page>
 		);
 	}
+
 	const requested = c.url.searchParams.get("method");
-	const selected = requested
-		? getCompanyMethod(config, requested)
-		: assigned.length === 1
-			? assigned[0]
-			: undefined;
-
-	if (requested && !selected) {
-		c.res.status = 404;
-		return (
-			<Page title="Method not found">
-				<main id="content" class="shell empty-state">
-					<Eyebrow>404 · {config.name}</Eyebrow>
-					<h1>This method is not assigned to the company.</h1>
-					<company.Anchor class="button" params={{ name: config.slug }}>
-						View company methods
-					</company.Anchor>
-				</main>
-			</Page>
-		);
+	if (requested) {
+		const selected = getCompanyMethod(config, requested);
+		if (!selected) {
+			c.res.status = 404;
+			return (
+				<Page title="Method not found">
+					<main id="content" class="shell empty-state">
+						<Eyebrow>404 · {config.name}</Eyebrow>
+						<h1>This method is not assigned to the company.</h1>
+						<company.Anchor class="button" params={{ name: config.slug }}>
+							View company methods
+						</company.Anchor>
+					</main>
+				</Page>
+			);
+		}
+		return c.redirect(`/companies/${config.slug}#${selected.id}`, 302);
 	}
 
-	if (!selected) {
-		return (
-			<Page
-				title={`${config.name} valuation methods`}
-				description={config.description}
-			>
-				<main id="content">
-					<section class="company-hero shell">
-						<div>
-							<Eyebrow>
-								Company {config.number} · {config.sector}
-							</Eyebrow>
-							<h1>{config.name}</h1>
-							<p>{config.description}</p>
-						</div>
-					</section>
-					<CompanyValuationSummary
-						config={config}
-						load={resolveBoard(config)}
-					/>
-					<section class="shell section">
-						<div class="section-heading">
-							<div>
-								<Eyebrow>Assigned methods</Eyebrow>
-								<h2>Assigned valuation methods</h2>
-							</div>
-							<p>
-								Select a method to inspect its source contract, assumptions,
-								calculation, and output definition.
-							</p>
-						</div>
-						<div class="company-grid method-grid">
-							{assigned.map((method) => (
-								<company.Anchor
-									class="company-card"
-									params={{ name: config.slug }}
-									search={{ method: method.id }}
-								>
-									<span>{method.family.replaceAll("-", " ")}</span>
-									<h3>{methodTitle(method)}</h3>
-									<p>{methodSummary(method)}</p>
-									<div>
-										<small>{method.id}</small>
-										<strong aria-hidden="true">↗</strong>
-									</div>
-								</company.Anchor>
-							))}
-						</div>
-					</section>
-				</main>
-			</Page>
-		);
-	}
-
-	const entry = getMethod(selected.method)?.content.frontmatter;
+	const load = resolveBoard(config);
 	return (
-		<Page
-			title={`${config.name} · ${entry?.title ?? methodTitle(selected)}`}
-			description={
-				entry
-					? `${entry.title} applied to ${config.name}. ${entry.description}`
-					: `${methodTitle(selected)} applied to ${config.name}.`
-			}
-		>
-			<CompanyPage config={config} selected={selected} requested={requested} />
+		<Page title={`${config.name} valuation`} description={config.description}>
+			<main id="content">
+				<section class="company-hero shell">
+					<div>
+						<Eyebrow>
+							Company {config.number} · {config.sector}
+						</Eyebrow>
+						<h1>{config.name}</h1>
+						<p>{config.description}</p>
+					</div>
+				</section>
+				<CompanyValuationSummary config={config} load={load} />
+				<CompanyMethods config={config} load={load} />
+			</main>
 		</Page>
 	);
 });
@@ -465,14 +453,6 @@ export const observation = Route.get(
 		}
 	},
 );
-
-async function resolveMethod(config: Company, method: CompanyMethod) {
-	try {
-		return { value: await companyLoader(config)(method), error: null };
-	} catch (error) {
-		return { value: null, error };
-	}
-}
 
 async function loadBoard(config: Company) {
 	const load = companyLoader(config);
@@ -640,7 +620,13 @@ async function CompanyValuationSummary(props: {
 		);
 	}
 
-	const { estimate, fetchedAt, loaded } = result.value;
+	const { estimate, failed, fetchedAt, loaded } = result.value;
+	const rows = methodWeights(loaded);
+	const maximum = Math.max(
+		estimate.value,
+		...rows.map(({ value }) => valuationValue(value)),
+	);
+
 	return (
 		<section
 			class="shell company-valuation"
@@ -651,8 +637,8 @@ async function CompanyValuationSummary(props: {
 				<strong>{formatMoney(estimate.value, true)}</strong>
 				<p>
 					A weighted estimate derived from {estimate.methods} current-equivalent{" "}
-					{estimate.methods === 1 ? "method" : "methods"}. Each component
-					calculation remains available below.
+					{estimate.methods === 1 ? "method" : "methods"}. The comparison shows
+					the value and effective ensemble weight of each input.
 				</p>
 			</div>
 			<dl>
@@ -680,118 +666,172 @@ async function CompanyValuationSummary(props: {
 					<dd>{fetchedAt ? formatDateTime(fetchedAt) : "Unavailable"}</dd>
 				</div>
 			</dl>
+			<div class="valuation-comparison">
+				<header>
+					<div>
+						<Eyebrow>Estimate composition</Eyebrow>
+						<h2>Total and method inputs</h2>
+					</div>
+					<p>
+						Bars share a zero baseline. Differences are measured against the Rai
+						estimate.
+					</p>
+				</header>
+				<ol>
+					<li class="total">
+						<div>
+							<strong>Rai combined</strong>
+							<span>Weighted current valuation</span>
+						</div>
+						<div class="valuation-comparison-track" aria-hidden="true">
+							<span
+								style={`inline-size:${maximum === 0 ? 0 : (estimate.value / maximum) * 100}%`}
+							/>
+						</div>
+						<small>100% result</small>
+						<b>{formatMoney(estimate.value, true)}</b>
+					</li>
+					{rows.map(({ value, weight }) => (
+						<li>
+							<div>
+								<strong>{methodLabel(value)}</strong>
+								<span>
+									{formatDifference(valuationValue(value), estimate.value)}
+								</span>
+							</div>
+							<div class="valuation-comparison-track" aria-hidden="true">
+								<span
+									style={`inline-size:${maximum === 0 ? 0 : (valuationValue(value) / maximum) * 100}%`}
+								/>
+							</div>
+							<small>{formatProbability(weight)} weight</small>
+							<b>{formatMoney(valuationValue(value), true)}</b>
+						</li>
+					))}
+				</ol>
+				{failed > 0 ? (
+					<p class="valuation-comparison-note">
+						{failed} configured {failed === 1 ? "method is" : "methods are"}{" "}
+						currently unavailable and excluded from the estimate.
+					</p>
+				) : null}
+			</div>
 		</section>
 	);
 }
 
-function CompanyPage(props: {
+async function CompanyMethods(props: {
 	config: Company;
-	selected: CompanyMethod;
-	requested: string | null;
+	load: ReturnType<typeof resolveBoard>;
 }) {
-	const { config, selected, requested } = props;
-	const load = resolveMethod(config, selected);
-
-	return (
-		<main id="content">
-			<section class="company-hero shell">
-				<div>
-					<Eyebrow>
-						Company {config.number} · {config.sector}
-					</Eyebrow>
-					<h1>{config.name}</h1>
-					<p>{config.description}</p>
-				</div>
-				<CompanyAsOf
-					config={config}
-					selected={selected}
-					requested={requested}
-					load={load}
-				/>
-			</section>
-			<CompanyAnalysis config={config} load={load} />
-		</main>
-	);
-}
-
-async function CompanyAsOf(props: {
-	config: Company;
-	selected: CompanyMethod;
-	requested: string | null;
-	load: ReturnType<typeof resolveMethod>;
-}) {
-	const { config, selected, requested, load } = props;
-	const result = await load;
-	const fetchedAt = result.value?.fetchedAt;
-
-	return (
-		<div class="as-of">
-			<span>Assignment {selected.id}</span>
-			<methodology.Anchor params={{ method: selected.method }}>
-				Read methodology
-			</methodology.Anchor>
-			<span>Fetched by Rai at</span>
-			<strong>
-				{fetchedAt
-					? formatDateTime(fetchedAt)
-					: result.error
-						? "Source unavailable"
-						: "Loading source"}
-			</strong>
-			<company.Anchor
-				params={{ name: config.slug }}
-				search={requested ? { method: selected.id } : undefined}
-			>
-				Refresh data
-			</company.Anchor>
-			<observation.Anchor
-				params={{ name: config.slug, method: selected.id }}
-				target="_blank"
-			>
-				Export current JSON
-			</observation.Anchor>
-		</div>
-	);
-}
-
-async function CompanyAnalysis(props: {
-	config: Company;
-	load: ReturnType<typeof resolveMethod>;
-}) {
-	const { config, load } = props;
-	const result = await load;
+	const result = await props.load;
 	if (!result.value) {
-		return (
-			<section class="shell empty-state">
-				<Eyebrow>Remote market unavailable</Eyebrow>
-				<h2>{config.name} could not be calculated from the current sources.</h2>
-				<p>
-					{result.error instanceof Error
-						? result.error.message
-						: "Polymarket returned an unexpected response."}
-				</p>
-				<company.Anchor class="button" params={{ name: config.slug }}>
-					Try again
-				</company.Anchor>
-			</section>
-		);
+		return null;
 	}
+	const { estimate, failed, loaded } = result.value;
+	const weights = methodWeights(loaded);
 
-	if (result.value.kind === "threshold") {
-		return <ThresholdAnalysis config={config} value={result.value} />;
-	}
 	return (
-		<IpoAnalysis
-			config={config}
-			selected={result.value.method}
-			value={result.value}
-		/>
+		<>
+			<section class="shell company-methods-intro" id="methods">
+				<div class="section-heading">
+					<div>
+						<Eyebrow>Method inputs</Eyebrow>
+						<h2>Calculations included in the estimate</h2>
+					</div>
+					<p>
+						Each method is shown in full below. Its output is translated to a
+						current-equivalent valuation before entering the combined estimate.
+					</p>
+				</div>
+				<nav aria-label={`${props.config.name} valuation methods`}>
+					{weights.map(({ value, weight }, i) => (
+						<company.Anchor
+							params={{ name: props.config.slug }}
+							hash={value.method.id}
+						>
+							<span>{String(i + 1).padStart(2, "0")}</span>
+							<div>
+								<strong>{methodTitle(value.method)}</strong>
+								<small>
+									{formatMoney(valuationValue(value), true)} ·{" "}
+									{formatProbability(weight)} ensemble weight
+								</small>
+							</div>
+							<b aria-hidden="true">↓</b>
+						</company.Anchor>
+					))}
+				</nav>
+				{failed > 0 ? (
+					<div class="alert warning">
+						{failed} configured {failed === 1 ? "method is" : "methods are"} not
+						available in this response.
+					</div>
+				) : null}
+			</section>
+			{weights.map(({ value, weight }, i) => (
+				<article class="company-method" id={value.method.id}>
+					<header class="shell company-method-header">
+						<div class="prose">
+							<Eyebrow>
+								Method {String(i + 1).padStart(2, "0")} ·{" "}
+								{value.method.family.replaceAll("-", " ")}
+							</Eyebrow>
+							<h2>{methodTitle(value.method)}</h2>
+							<p>{methodSummary(value.method)}</p>
+							<nav aria-label={`${methodTitle(value.method)} resources`}>
+								<methodology.Anchor params={{ method: value.method.method }}>
+									Read methodology <span aria-hidden="true">↗</span>
+								</methodology.Anchor>
+								<observation.Anchor
+									params={{
+										name: props.config.slug,
+										method: value.method.id,
+									}}
+									target="_blank"
+								>
+									Export current JSON <span aria-hidden="true">↗</span>
+								</observation.Anchor>
+							</nav>
+						</div>
+						<div class="company-method-value">
+							<span>Current-equivalent input</span>
+							<strong>{formatMoney(valuationValue(value), true)}</strong>
+							<dl>
+								<div>
+									<dt>Difference from total</dt>
+									<dd>
+										{formatDifference(valuationValue(value), estimate.value)}
+									</dd>
+								</div>
+								<div>
+									<dt>Ensemble weight</dt>
+									<dd>{formatProbability(weight)}</dd>
+								</div>
+								<div>
+									<dt>Fetched</dt>
+									<dd>
+										{value.fetchedAt
+											? formatDateTime(value.fetchedAt)
+											: "Unavailable"}
+									</dd>
+								</div>
+							</dl>
+						</div>
+					</header>
+					{value.kind === "threshold" ? (
+						<ThresholdAnalysis config={props.config} value={value} />
+					) : (
+						<IpoAnalysis config={props.config} value={value} />
+					)}
+				</article>
+			))}
+		</>
 	);
 }
 
 function IpoAnalysis(props: {
 	config: Company;
-	selected: PredictionIpoMethod;
 	value: Extract<LoadedMethod, { kind: "ipo" }>;
 }) {
 	const { config, value } = props;
@@ -852,11 +892,11 @@ function IpoAnalysis(props: {
 				<div class="shell alert warning">{warning}</div>
 			))}
 
-			<section class="shell section" id="sources">
+			<section class="shell section" id={`${value.method.id}-distribution`}>
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Probability distribution</Eyebrow>
-						<h2>Normalized market probabilities</h2>
+						<h3>Normalized market probabilities</h3>
 					</div>
 					<p>
 						Raw binary-market prices total{" "}
@@ -871,12 +911,12 @@ function IpoAnalysis(props: {
 				</details>
 			</section>
 
-			<section class="dark-section" id="calculation">
+			<section class="dark-section" id={`${value.method.id}-calculation`}>
 				<div class="shell">
 					<div class="section-heading">
 						<div>
 							<Eyebrow>Calculation details</Eyebrow>
-							<h2>IPO-ladder calculation</h2>
+							<h3>IPO-ladder calculation</h3>
 						</div>
 						<p>
 							All monetary values are calculated internally in millions of US
@@ -887,7 +927,7 @@ function IpoAnalysis(props: {
 						<li>
 							<span>01</span>
 							<div>
-								<h3>Normalize the ladder</h3>
+								<h4>Normalize the ladder</h4>
 								<p>
 									Each raw probability ÷{" "}
 									{formatProbability(current.rawProbabilitySum)}
@@ -898,7 +938,7 @@ function IpoAnalysis(props: {
 						<li>
 							<span>02</span>
 							<div>
-								<h3>Weight IPO outcomes</h3>
+								<h4>Weight IPO outcomes</h4>
 								<p>Σ conditional probability × assigned bracket value</p>
 							</div>
 							<strong>{formatMoney(current.conditionalIpoValue)}</strong>
@@ -906,7 +946,7 @@ function IpoAnalysis(props: {
 						<li>
 							<span>03</span>
 							<div>
-								<h3>Discount the future IPO branch</h3>
+								<h4>Discount the future IPO branch</h4>
 								<p>
 									IPO scenario ÷ (1 +{" "}
 									{formatProbability(assumptions.discountRate)})^
@@ -918,7 +958,7 @@ function IpoAnalysis(props: {
 						<li>
 							<span>04</span>
 							<div>
-								<h3>Mix current-equivalent branches</h3>
+								<h4>Mix current-equivalent branches</h4>
 								<p>
 									IPO odds × discounted IPO cap + residual odds × current
 									private scenario value of{" "}
@@ -934,7 +974,7 @@ function IpoAnalysis(props: {
 			<section class="shell section split">
 				<div class="prose">
 					<Eyebrow>Assumptions</Eyebrow>
-					<h2>Configured valuation assumptions</h2>
+					<h3>Configured valuation assumptions</h3>
 					<p>
 						Closed brackets use arithmetic midpoints. Open brackets and the
 						no-IPO scenario use configured values. The no-IPO value is already a
@@ -959,7 +999,7 @@ function IpoAnalysis(props: {
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Sensitivity</Eyebrow>
-						<h2>One-variable sensitivity analysis</h2>
+						<h3>One-variable sensitivity analysis</h3>
 					</div>
 					<p>
 						Each check varies one configured assumption from its base value.
@@ -989,7 +1029,7 @@ function IpoAnalysis(props: {
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Source markets</Eyebrow>
-						<h2>Polymarket source quotes</h2>
+						<h3>Polymarket source quotes</h3>
 					</div>
 					<ProviderIdentity
 						id="polymarket"
@@ -1001,7 +1041,7 @@ function IpoAnalysis(props: {
 						<article>
 							<div>
 								<span class="badge">{outcome.selectedMethod}</span>
-								<h3>{outcome.label}</h3>
+								<h4>{outcome.label}</h4>
 								<p>{outcome.sourceQuestion}</p>
 							</div>
 							<dl>
@@ -1041,7 +1081,7 @@ function IpoAnalysis(props: {
 
 			<section class="shell disclosure prose">
 				<Eyebrow>Important limitations</Eyebrow>
-				<h2>Scope and limitations</h2>
+				<h3>Scope and limitations</h3>
 				<p>
 					Prediction prices may be illiquid, stale, or distorted. Open-ended
 					brackets require judgment. First-day IPO market capitalization is not
@@ -1120,11 +1160,11 @@ function ThresholdAnalysis(props: {
 				<div class="shell alert warning">{warning}</div>
 			))}
 
-			<section class="shell section" id="sources">
+			<section class="shell section" id={`${value.method.id}-distribution`}>
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Implied distribution</Eyebrow>
-						<h2>Cumulative threshold distribution</h2>
+						<h3>Cumulative threshold distribution</h3>
 					</div>
 					<p>
 						Each contract prices the chance that {config.name} reaches at least
@@ -1196,12 +1236,12 @@ function ThresholdAnalysis(props: {
 				</details>
 			</section>
 
-			<section class="dark-section" id="calculation">
+			<section class="dark-section" id={`${value.method.id}-calculation`}>
 				<div class="shell">
 					<div class="section-heading">
 						<div>
 							<Eyebrow>Calculation details</Eyebrow>
-							<h2>Threshold-curve calculation</h2>
+							<h3>Threshold-curve calculation</h3>
 						</div>
 						<p>
 							The source distribution describes the highest valuation reached by
@@ -1213,7 +1253,7 @@ function ThresholdAnalysis(props: {
 						<li>
 							<span>01</span>
 							<div>
-								<h3>Select market quotes</h3>
+								<h4>Select market quotes</h4>
 								<p>
 									Use one selected Polymarket quote for each configured NPM
 									Price threshold
@@ -1224,7 +1264,7 @@ function ThresholdAnalysis(props: {
 						<li>
 							<span>02</span>
 							<div>
-								<h3>Fit a monotone curve</h3>
+								<h4>Fit a monotone curve</h4>
 								<p>
 									The chance of exceeding a higher value cannot exceed the
 									chance of exceeding a lower one
@@ -1235,7 +1275,7 @@ function ThresholdAnalysis(props: {
 						<li>
 							<span>03</span>
 							<div>
-								<h3>Difference adjacent thresholds</h3>
+								<h4>Difference adjacent thresholds</h4>
 								<p>
 									P(band) = P(above lower) − P(above upper), then weight each
 									band
@@ -1246,7 +1286,7 @@ function ThresholdAnalysis(props: {
 						<li>
 							<span>04</span>
 							<div>
-								<h3>Translate the peak to current value</h3>
+								<h4>Translate the peak to current value</h4>
 								<p>
 									Peak value ÷ (1 + {formatProbability(assumptions.growthRate)}
 									)^
@@ -1264,7 +1304,7 @@ function ThresholdAnalysis(props: {
 			<section class="shell section split">
 				<div class="prose">
 					<Eyebrow>Assumptions</Eyebrow>
-					<h2>Lower- and upper-tail assumptions</h2>
+					<h3>Lower- and upper-tail assumptions</h3>
 					<p>
 						The lowest band is anchored at a known valuation floor. Closed bands
 						use midpoints, while the open upper tail needs an explicit
@@ -1314,7 +1354,7 @@ function ThresholdAnalysis(props: {
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Sensitivity</Eyebrow>
-						<h2>Growth-rate and upper-tail sensitivity</h2>
+						<h3>Growth-rate and upper-tail sensitivity</h3>
 					</div>
 					<p>
 						These checks vary the distribution’s open lower and upper tails. The
@@ -1346,7 +1386,7 @@ function ThresholdAnalysis(props: {
 				<div class="section-heading">
 					<div>
 						<Eyebrow>Source markets</Eyebrow>
-						<h2>Polymarket threshold contracts</h2>
+						<h3>Polymarket threshold contracts</h3>
 					</div>
 					<ProviderIdentity
 						id={value.method.data.provider}
@@ -1358,7 +1398,7 @@ function ThresholdAnalysis(props: {
 						<article>
 							<div>
 								<span class="badge">{threshold.selectedMethod}</span>
-								<h3>{threshold.label}</h3>
+								<h4>{threshold.label}</h4>
 								<p>{threshold.sourceQuestion}</p>
 							</div>
 							<dl>
@@ -1401,7 +1441,7 @@ function ThresholdAnalysis(props: {
 
 			<section class="shell disclosure prose">
 				<Eyebrow>Important limitations</Eyebrow>
-				<h2>Scope and limitations</h2>
+				<h3>Scope and limitations</h3>
 				<p>
 					The contracts resolve on the highest qualifying non-public-market or
 					public-market valuation observed before the deadline. The estimate is
