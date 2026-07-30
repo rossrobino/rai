@@ -531,6 +531,10 @@ function companyTransition(config: Company) {
 	return `rai-company-${config.slug}`;
 }
 
+function valuationTransition(config: Company) {
+	return `${companyTransition(config)}-valuation`;
+}
+
 function CompanyMarketCard(props: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
@@ -587,7 +591,11 @@ async function CompanyMarketValue(props: {
 				</small>
 			</p>
 			<div class="valuation-card-estimate">
-				<strong>{formatMoney(estimate.value, true)}</strong>
+				<strong
+					style={`view-transition-name:${valuationTransition(props.config)}`}
+				>
+					{formatMoney(estimate.value, true)}
+				</strong>
 				<small>
 					{estimate.methods} current-equivalent{" "}
 					{estimate.methods === 1 ? "input" : "inputs"}
@@ -665,7 +673,11 @@ async function CompanyValuationValue(props: {
 		<>
 			<div>
 				<Eyebrow>Rai current valuation</Eyebrow>
-				<strong>{formatMoney(estimate.value, true)}</strong>
+				<strong
+					style={`view-transition-name:${valuationTransition(props.config)}`}
+				>
+					{formatMoney(estimate.value, true)}
+				</strong>
 				<p>
 					A weighted estimate derived from {estimate.methods} current-equivalent{" "}
 					{estimate.methods === 1 ? "method" : "methods"}. The comparison shows
