@@ -4,6 +4,7 @@ import {
 	calculate,
 	calculateThresholds,
 	combineValuations,
+	formatDateTime,
 	formatMoney,
 	type Assumptions,
 	type Outcome,
@@ -212,6 +213,17 @@ test("formats headline values to two decimal places", () => {
 	assert.equal(formatMoney(1_350_000), "$1.35T");
 	assert.equal(formatMoney(1_420_000, true), "$1.42T");
 	assert.equal(formatMoney(75_000, true), "$75.00B");
+});
+
+test("formats timestamps in US Eastern Time", () => {
+	assert.equal(
+		formatDateTime("2026-07-30T18:15:00Z"),
+		"Jul 30, 2026, 2:15 PM EDT",
+	);
+	assert.equal(
+		formatDateTime("2026-01-15T18:15:00Z"),
+		"Jan 15, 2026, 1:15 PM EST",
+	);
 });
 
 test("combines current-equivalent methods within evidence families", () => {

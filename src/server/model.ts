@@ -508,7 +508,7 @@ export function formatDateTime(value: string) {
 		year: "numeric",
 		hour: "numeric",
 		minute: "2-digit",
-		timeZone: "UTC",
+		timeZone: "America/New_York",
 		timeZoneName: "short",
 	}).format(new Date(value));
 }
