@@ -79,7 +79,7 @@ function HomePage() {
 
 	return (
 		<main id="content">
-			<section class="hero hero-solo shell">
+			<section class="hero shell">
 				<div class="hero-copy">
 					<Eyebrow>
 						Rai · private-market research · {companies.length}{" "}
@@ -93,7 +93,7 @@ function HomePage() {
 						probability-weighted estimates.
 					</p>
 					<div class="hero-actions">
-						<dashboard.Anchor class="button accent">
+						<dashboard.Anchor class="button">
 							Open the dashboard
 						</dashboard.Anchor>
 						<home.Anchor class="text-link" hash="method">
@@ -101,6 +101,14 @@ function HomePage() {
 						</home.Anchor>
 					</div>
 				</div>
+				{preview ? (
+					<div class="home-hero-card">
+						<CompanyMarketCard
+							config={preview}
+							load={resolveBoard(preview, false)}
+						/>
+					</div>
+				) : null}
 			</section>
 
 			<section class="tape" aria-label="Model highlights">
@@ -144,26 +152,6 @@ function HomePage() {
 					))}
 				</nav>
 			</section>
-
-			{preview ? (
-				<section class="shell home-preview">
-					<div class="home-preview-copy prose">
-						<Eyebrow>Dashboard preview</Eyebrow>
-						<h2>Current company estimates</h2>
-						<p>
-							The dashboard contains the full company set, source status, method
-							counts, and the current output of each distinct model.
-						</p>
-						<dashboard.Anchor class="button">View dashboard</dashboard.Anchor>
-					</div>
-					<div class="home-preview-card">
-						<CompanyMarketCard
-							config={preview}
-							load={resolveBoard(preview, false)}
-						/>
-					</div>
-				</section>
-			) : null}
 		</main>
 	);
 }

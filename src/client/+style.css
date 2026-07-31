@@ -357,14 +357,6 @@
 		padding-block: clamp(2rem, 4vw, 3.5rem) clamp(3.5rem, 7vw, 6rem);
 	}
 
-	.hero-solo {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.hero-solo .hero-copy {
-		max-inline-size: 70rem;
-	}
-
 	.eyebrow {
 		color: var(--accent-dark);
 		font-size: 0.72rem;
@@ -399,6 +391,12 @@
 		flex-wrap: wrap;
 		gap: 1.5rem;
 		margin-block-start: 2rem;
+	}
+
+	.home-hero-card {
+		inline-size: 100%;
+		justify-self: end;
+		max-inline-size: 28rem;
 	}
 
 	.valuation-card {
@@ -624,33 +622,6 @@
 
 	.tape-inner span {
 		opacity: 0.7;
-	}
-
-	.home-preview {
-		align-items: center;
-		border-block-start: 1px solid var(--line);
-		display: grid;
-		gap: clamp(3rem, 8vw, 8rem);
-		grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.62fr);
-		padding-block: clamp(3.5rem, 7vw, 6rem);
-	}
-
-	.home-preview-copy {
-		max-inline-size: 36rem;
-	}
-
-	.home-preview-copy .button {
-		margin-block-start: 1rem;
-	}
-
-	.home-preview-card {
-		inline-size: 100%;
-		justify-self: end;
-		max-inline-size: 28rem;
-	}
-
-	.home-preview-card .market-card {
-		min-block-size: 23rem;
 	}
 
 	.dashboard-hero {
@@ -2299,7 +2270,6 @@
 		.hero,
 		.split,
 		.section-heading,
-		.home-preview,
 		.dashboard-hero,
 		.valuation-comparison > header,
 		.company-method-header,
@@ -2319,7 +2289,7 @@
 			min-block-size: auto;
 		}
 
-		.home-preview-card {
+		.home-hero-card {
 			justify-self: start;
 		}
 
