@@ -261,7 +261,6 @@ export const CompanySchema = Schema.object({
 	slug: IdSchema,
 	name: Schema.string().min(1),
 	code: Schema.string().min(1),
-	number: Schema.string().min(1),
 	sector: Schema.string().min(1),
 	description: Schema.string().min(1),
 	methods: Schema.array(CompanyMethodSchema).refine(

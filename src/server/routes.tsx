@@ -431,9 +431,7 @@ export const company = Route.get("/companies/:name", (c) => {
 			<main id="content">
 				<section class="company-hero shell">
 					<div>
-						<Eyebrow>
-							Company {config.number} · {config.sector}
-						</Eyebrow>
+						<Eyebrow>{config.sector}</Eyebrow>
 						<h1>{config.name}</h1>
 						<p>{config.description}</p>
 					</div>

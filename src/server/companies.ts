@@ -10,7 +10,30 @@ if (result.issues) {
 	throw new Error(`Invalid company catalog: ${result.issues.join("; ")}`);
 }
 
-export const companies = result.data;
+// Latest verified Rai valuation order. Keeping this explicit preserves
+// per-card server streaming instead of blocking the board on every live fetch.
+const ranking = [
+	"anthropic",
+	"openai",
+	"bytedance",
+	"stripe",
+	"databricks",
+	"anduril",
+	"neuralink",
+	"canva",
+	"perplexity",
+	"epic-games",
+	"kraken",
+	"oura",
+	"discord",
+	"strava",
+];
+const rank = new Map(ranking.map((slug, i) => [slug, i]));
+
+export const companies = [...result.data].sort(
+	(a, b) =>
+		(rank.get(a.slug) ?? ranking.length) - (rank.get(b.slug) ?? ranking.length),
+);
 
 export function getCompany(slug: string) {
 	return companies.find((company) => company.slug === slug);

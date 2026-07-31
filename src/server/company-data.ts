@@ -91,7 +91,6 @@ function thresholdCompany(value: {
 	id: string;
 	name: string;
 	code: string;
-	number: string;
 	sector: string;
 	event: string;
 	floorValue: number;
@@ -104,7 +103,6 @@ function thresholdCompany(value: {
 		slug: value.id,
 		name: value.name,
 		code: value.code,
-		number: value.number,
 		sector: value.sector,
 		description: `Polymarket provides an NPM Price threshold curve for ${value.name}, measuring the maximum qualifying valuation reached through December 31, 2026.`,
 		methods: [
@@ -232,7 +230,6 @@ export const companyData = [
 		slug: "anthropic",
 		name: "Anthropic",
 		code: "ANTHROPIC",
-		number: "01",
 		sector: "Artificial intelligence",
 		description:
 			"Polymarket provides two IPO-capitalization ladders for Anthropic plus a maximum qualifying valuation curve by deadline.",
@@ -593,7 +590,6 @@ export const companyData = [
 		slug: "openai",
 		name: "OpenAI",
 		code: "OPENAI",
-		number: "02",
 		sector: "Artificial intelligence",
 		description:
 			"Polymarket provides two IPO-capitalization horizons for OpenAI plus a maximum qualifying valuation curve by deadline.",
@@ -883,7 +879,6 @@ export const companyData = [
 		slug: "perplexity",
 		name: "Perplexity",
 		code: "PERPLEXITY",
-		number: "03",
 		sector: "Artificial intelligence",
 		description:
 			"Polymarket provides two distinct Perplexity signals: an IPO-capitalization scenario and a maximum qualifying valuation by deadline.",
@@ -1098,7 +1093,6 @@ export const companyData = [
 		slug: "oura",
 		name: "Oura",
 		code: "OURA",
-		number: "04",
 		sector: "Health technology",
 		description:
 			"A Polymarket IPO-cap ladder estimates Oura’s IPO-cap current equivalent from its 2026 outcome distribution.",
@@ -1230,7 +1224,6 @@ export const companyData = [
 		slug: "strava",
 		name: "Strava",
 		code: "STRAVA",
-		number: "05",
 		sector: "Fitness technology",
 		description:
 			"Strava’s IPO-cap current equivalent derived from a nine-outcome 2027 Polymarket ladder.",
@@ -1374,7 +1367,6 @@ export const companyData = [
 		slug: "discord",
 		name: "Discord",
 		code: "DISCORD",
-		number: "06",
 		sector: "Consumer technology",
 		description:
 			"A Polymarket IPO-cap ladder estimates Discord’s IPO-cap current equivalent from its 2027 outcome distribution.",
@@ -1506,7 +1498,6 @@ export const companyData = [
 		id: "bytedance",
 		name: "ByteDance",
 		code: "BYTEDANCE",
-		number: "07",
 		sector: "Consumer internet",
 		event: "will-bytedances-valuation-hit-by-december-31-20260701011753589",
 		floorValue: 550_000,
@@ -1525,7 +1516,6 @@ export const companyData = [
 		id: "stripe",
 		name: "Stripe",
 		code: "STRIPE",
-		number: "08",
 		sector: "Financial technology",
 		event: "will-stripes-valuation-hit-by-december-31",
 		floorValue: 170_000,
@@ -1544,7 +1534,6 @@ export const companyData = [
 		id: "anduril",
 		name: "Anduril",
 		code: "ANDURIL",
-		number: "09",
 		sector: "Defense technology",
 		event: "will-andurils-valuation-hit-by-december-31",
 		floorValue: 100_000,
@@ -1561,7 +1550,6 @@ export const companyData = [
 		id: "kraken",
 		name: "Kraken",
 		code: "KRAKEN",
-		number: "10",
 		sector: "Cryptocurrency",
 		event: "will-krakens-valuation-hit-by-december-31",
 		floorValue: 10_000,
@@ -1579,7 +1567,6 @@ export const companyData = [
 		id: "databricks",
 		name: "Databricks",
 		code: "DATABRICKS",
-		number: "11",
 		sector: "Data and artificial intelligence",
 		event: "will-databricks-valuation-hit-by-december-31",
 		floorValue: 170_000,
@@ -1597,7 +1584,6 @@ export const companyData = [
 		id: "epic-games",
 		name: "Epic Games",
 		code: "EPIC GAMES",
-		number: "12",
 		sector: "Interactive entertainment",
 		event: "will-epic-games-valuation-hit-by-december-31",
 		floorValue: 12_500,
@@ -1616,7 +1602,6 @@ export const companyData = [
 		id: "neuralink",
 		name: "Neuralink",
 		code: "NEURALINK",
-		number: "13",
 		sector: "Neurotechnology",
 		event: "will-neuralinks-valuation-hit-by-december-31",
 		floorValue: 45_000,
@@ -1632,7 +1617,6 @@ export const companyData = [
 		id: "canva",
 		name: "Canva",
 		code: "CANVA",
-		number: "14",
 		sector: "Design software",
 		event: "will-canvas-valuation-hit-by-december-31",
 		floorValue: 40_000,
