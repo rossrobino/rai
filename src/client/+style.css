@@ -1321,14 +1321,16 @@
 
 	.source-list {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	.source-list article {
+		align-content: start;
 		border-block-end: 1px solid var(--line);
 		display: grid;
-		gap: 1.5rem;
-		grid-template-columns: 1fr auto;
+		gap: 1.25rem;
+		grid-template-columns: minmax(0, 1fr);
+		min-inline-size: 0;
 		padding: 1.5rem;
 	}
 
@@ -1350,12 +1352,22 @@
 		line-height: 1.45;
 		margin: 0;
 		max-inline-size: 36rem;
+		overflow-wrap: anywhere;
 	}
 
 	.source-list dl {
-		display: flex;
-		gap: 1.4rem;
+		display: grid;
+		gap: 1rem 1.25rem;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		margin: 0;
+	}
+
+	.source-list dl > div {
+		min-inline-size: 0;
+	}
+
+	.source-list dl > div:last-child {
+		grid-column: 1 / -1;
 	}
 
 	.source-list dt {
@@ -1366,13 +1378,20 @@
 	.source-list dd {
 		font: 0.7rem/1.4 var(--font-mono);
 		margin: 0.2rem 0 0;
+		overflow-wrap: anywhere;
 	}
 
 	.source-list article > a {
 		font-size: 0.68rem;
 		font-weight: 700;
-		grid-column: 1 / -1;
+		justify-self: start;
 		text-transform: uppercase;
+	}
+
+	.source-list .badge {
+		max-inline-size: 100%;
+		overflow-wrap: anywhere;
+		white-space: normal;
 	}
 
 	.provider-identity {
@@ -2396,6 +2415,14 @@
 
 		.source-list article {
 			grid-template-columns: 1fr;
+		}
+
+		.source-list dl {
+			grid-template-columns: 1fr;
+		}
+
+		.source-list dl > div:last-child {
+			grid-column: auto;
 		}
 
 		.formula-steps li {

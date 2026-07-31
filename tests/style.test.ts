@@ -44,6 +44,21 @@ test("numeric text uses tabular figures throughout the document", () => {
 	);
 });
 
+test("source market cards keep long quotes and metadata within their grid", () => {
+	assert.match(
+		css,
+		/\.source-list\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
+	);
+	assert.match(
+		css,
+		/\.source-list article\s*\{[^}]*align-content:\s*start;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-inline-size:\s*0;/s,
+	);
+	assert.match(
+		css,
+		/\.source-list \.badge\s*\{[^}]*max-inline-size:\s*100%;[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/s,
+	);
+});
+
 test("company tiles use an accessible cross-document view transition", () => {
 	assert.match(
 		css,
