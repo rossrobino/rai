@@ -1413,6 +1413,10 @@
 		border-inline-end: 1px solid var(--line);
 	}
 
+	.source-list article > div {
+		display: grid;
+	}
+
 	.source-list h3,
 	.source-list h4 {
 		font-family: var(--font-serif);
@@ -1464,9 +1468,7 @@
 	}
 
 	.source-list .badge {
-		max-inline-size: 100%;
-		overflow-wrap: anywhere;
-		white-space: normal;
+		justify-self: start;
 	}
 
 	.provider-identity {
@@ -1572,17 +1574,6 @@
 	.ensemble-grid article > a {
 		font-size: 0.7rem;
 		font-weight: 700;
-		text-transform: uppercase;
-	}
-
-	.badge {
-		border: 1px solid var(--line);
-		border-radius: 99rem;
-		display: inline-block;
-		font-size: 0.59rem;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-		padding: 0.25rem 0.5rem;
 		text-transform: uppercase;
 	}
 

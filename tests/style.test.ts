@@ -53,10 +53,9 @@ test("source market cards keep long quotes and metadata within their grid", () =
 		css,
 		/\.source-list article\s*\{[^}]*align-content:\s*start;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-inline-size:\s*0;/s,
 	);
-	assert.match(
-		css,
-		/\.source-list \.badge\s*\{[^}]*max-inline-size:\s*100%;[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/s,
-	);
+	assert.match(css, /\.source-list article > div\s*\{[^}]*display:\s*grid;/s);
+	assert.match(css, /\.source-list \.badge\s*\{[^}]*justify-self:\s*start;/s);
+	assert.doesNotMatch(css, /\n\t\.badge\s*\{/);
 });
 
 test("company tiles use an accessible cross-document view transition", () => {
