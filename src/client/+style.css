@@ -526,42 +526,10 @@
 		font: 0.68rem/1 var(--font-mono);
 	}
 
-	.valuation-card-signals {
-		border-block: 1px solid var(--ink-line);
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-	}
-
-	.valuation-card-signal {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		min-block-size: 4.5rem;
-		padding-block: 0.85rem;
-	}
-
-	.valuation-card-signal + .valuation-card-signal {
-		border-inline-start: 1px solid var(--ink-line);
-		padding-inline-start: 1rem;
-	}
-
-	.valuation-card-signal > span,
 	.market-card-meta small {
 		color: var(--ink-muted);
 		display: block;
 		font-size: 0.66rem;
-	}
-
-	.valuation-card-signal > span {
-		font: 0.62rem/1 var(--font-mono);
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.valuation-card-signal > b {
-		display: block;
-		font: 0.8rem/1 var(--font-mono);
-		margin-block-start: 0.55rem;
 	}
 
 	.market-card-meta {

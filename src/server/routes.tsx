@@ -204,7 +204,8 @@ export const dashboard = Route.get("/dashboard", () => (
 function DashboardPage() {
 	const assignments = companies.flatMap((config) => config.methods);
 	const live = assignments.filter((method) => method.storage === "live").length;
-	const families = new Set(assignments.map((method) => method.family)).size;
+	const sources = new Set(assignments.map((method) => method.data.provider))
+		.size;
 	const markets = board();
 
 	return (
@@ -214,32 +215,34 @@ function DashboardPage() {
 					<Eyebrow>Valuation dashboard</Eyebrow>
 					<h1>Company estimates</h1>
 					<p>
-						Derived current valuations calculated from configured public
-						prediction-market methods.
+						Estimates of what private companies may be worth today, derived from
+						public prediction-market prices.
 					</p>
 				</div>
 				<dl class="dashboard-stats">
 					<div>
-						<dt>{plural(companies.length, "Company", "Companies")}</dt>
+						<dt>
+							{plural(companies.length, "Company covered", "Companies covered")}
+						</dt>
 						<dd>{companies.length}</dd>
 					</div>
 					<div>
 						<dt>
 							{plural(
 								assignments.length,
-								"Method assignment",
-								"Method assignments",
+								"Market-based estimate",
+								"Market-based estimates",
 							)}
 						</dt>
 						<dd>{assignments.length}</dd>
 					</div>
 					<div>
-						<dt>{plural(live, "Live assignment", "Live assignments")}</dt>
+						<dt>{plural(live, "Live estimate", "Live estimates")}</dt>
 						<dd>{live}</dd>
 					</div>
 					<div>
-						<dt>{plural(families, "Evidence family", "Evidence families")}</dt>
-						<dd>{families}</dd>
+						<dt>{plural(sources, "Data source", "Data sources")}</dt>
+						<dd>{sources}</dd>
 					</div>
 				</dl>
 			</section>
@@ -251,9 +254,9 @@ function DashboardPage() {
 						<h2>Current valuations</h2>
 					</div>
 					<p>
-						Each headline combines current-equivalent method outputs using the
-						configured weights. The input estimates and their range remain
-						visible on every card.
+						Each card starts with Rai’s estimate of what the company may be
+						worth today. When several methods apply, the range shows where their
+						estimates differ—not a confidence interval.
 					</p>
 				</div>
 				<div
@@ -720,13 +723,13 @@ async function CompanyMarketValue({
 	return (
 		<div class="market-card-value">
 			<p>
-				<span>Rai current valuation</span>
+				<span>Estimated current valuation</span>
 				<small>
 					{failed > 0
 						? "Partial estimate"
 						: loaded.length === 1
-							? "Single method"
-							: "Weighted estimate"}
+							? "One estimate"
+							: `${loaded.length} estimates combined`}
 				</small>
 			</p>
 			<div class="valuation-card-estimate">
@@ -739,13 +742,9 @@ async function CompanyMarketValue({
 				>
 					{formatMoney(estimate.value, true)}
 				</strong>
-				<small>
-					{estimate.methods} current-equivalent{" "}
-					{estimate.methods === 1 ? "input" : "inputs"}
-				</small>
 				{estimate.methods > 1 ? (
 					<div>
-						<span>Input range</span>
+						<span>Estimate range</span>
 						<b>
 							{formatMoney(estimate.low, true)}–
 							{formatMoney(estimate.high, true)}
@@ -753,21 +752,13 @@ async function CompanyMarketValue({
 					</div>
 				) : null}
 			</div>
-			<div class="valuation-card-signals">
-				{loaded.map((value) => (
-					<div class="valuation-card-signal">
-						<span>{methodLabel(value)}</span>
-						<b>{formatMoney(valuationValue(value), true)}</b>
-					</div>
-				))}
-			</div>
 			<div class="market-card-meta">
 				<small>
 					{fetchedAt
-						? `Fetched ${formatDateTime(fetchedAt)}`
-						: "Fetch time unavailable"}
+						? `Updated ${formatDateTime(fetchedAt)}`
+						: "Update time unavailable"}
 					{failed > 0
-						? ` · ${failed} ${failed === 1 ? "method" : "methods"} unavailable`
+						? ` · ${failed} ${failed === 1 ? "estimate" : "estimates"} unavailable`
 						: ""}
 				</small>
 				<b aria-hidden="true">↗</b>
@@ -837,8 +828,8 @@ async function CompanyValuationHistory(props: { config: Company }) {
 					</h2>
 				</div>
 				<p>
-					One scheduled observation per day. Lines show the Rai estimate and the
-					current-equivalent inputs available in each run.
+					One scheduled observation per day. Lines show the Rai estimate and
+					each available method estimate.
 				</p>
 			</header>
 			<dl class="history-stats">
@@ -882,8 +873,8 @@ async function CompanyValuationHistory(props: { config: Company }) {
 							<tr>
 								<th>Observed</th>
 								<th>Rai estimate</th>
-								<th>Input range</th>
-								<th>Inputs</th>
+								<th>Method range</th>
+								<th>Methods</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -930,66 +921,68 @@ async function CompanyValuationValue(props: {
 	return (
 		<>
 			<div>
-				<Eyebrow>Rai current valuation</Eyebrow>
+				<Eyebrow>Estimated current valuation</Eyebrow>
 				<strong
 					style={`view-transition-name:${valuationTransition(props.config)}`}
 				>
 					{formatMoney(estimate.value, true)}
 				</strong>
 				<p>
-					A weighted estimate derived from {estimate.methods} current-equivalent{" "}
-					{estimate.methods === 1 ? "method" : "methods"}. The comparison shows
-					the value and effective ensemble weight of each input.
+					{estimate.methods === 1
+						? `A market-derived estimate of what ${props.config.name} may be worth today. The full calculation and assumptions are shown below.`
+						: `Rai combines ${estimate.methods} market-derived estimates into this current valuation. The range is the lowest-to-highest method result, not a confidence interval.`}
 				</p>
 			</div>
 			<dl>
 				<div>
-					<dt>Input range</dt>
+					<dt>Estimate range</dt>
 					<dd>
 						{formatMoney(estimate.low, true)}–{formatMoney(estimate.high, true)}
 					</dd>
 				</div>
 				<div>
-					<dt>Weighting</dt>
+					<dt>Estimates used</dt>
+					<dd>{estimate.methods}</dd>
+				</div>
+				<div>
+					<dt>How combined</dt>
 					<dd>
-						{estimate.families.length === 1 &&
-						new Set(loaded.map((value) => value.method.weight)).size === 1
-							? "Equal within family"
-							: "Configured hierarchy"}
+						{estimate.methods === 1
+							? "Single estimate"
+							: estimate.families.length === 1 &&
+								  new Set(loaded.map((value) => value.method.weight)).size === 1
+								? "Equal weighting"
+								: "Different weights"}
 					</dd>
 				</div>
 				<div>
-					<dt>Input spread</dt>
-					<dd>{formatProbability(estimate.spreadRatio)}</dd>
-				</div>
-				<div>
-					<dt>Fetched</dt>
+					<dt>Updated</dt>
 					<dd>{fetchedAt ? formatDateTime(fetchedAt) : "Unavailable"}</dd>
 				</div>
 			</dl>
 			<div class="valuation-comparison">
 				<header>
 					<div>
-						<Eyebrow>Estimate composition</Eyebrow>
-						<h2>Total and method inputs</h2>
+						<Eyebrow>How the estimate is built</Eyebrow>
+						<h2>Combined estimate and inputs</h2>
 					</div>
 					<p>
-						Bars share a zero baseline. Differences are measured against the Rai
-						estimate.
+						Each bar uses the same valuation scale. The percentage shows how
+						much the method counts toward the combined estimate.
 					</p>
 				</header>
 				<ol>
 					<li class="total">
 						<div>
-							<strong>Rai combined</strong>
-							<span>Weighted current valuation</span>
+							<strong>Rai estimate</strong>
+							<span>Combined current valuation</span>
 						</div>
 						<div class="valuation-comparison-track" aria-hidden="true">
 							<span
 								style={`inline-size:${maximum === 0 ? 0 : (estimate.value / maximum) * 100}%`}
 							/>
 						</div>
-						<small>100% result</small>
+						<small>Headline estimate</small>
 						<b>{formatMoney(estimate.value, true)}</b>
 					</li>
 					{rows.map(({ value, weight }) => (
@@ -1005,7 +998,7 @@ async function CompanyValuationValue(props: {
 									style={`inline-size:${maximum === 0 ? 0 : (valuationValue(value) / maximum) * 100}%`}
 								/>
 							</div>
-							<small>{formatProbability(weight)} weight</small>
+							<small>{formatProbability(weight)} of combined estimate</small>
 							<b>{formatMoney(valuationValue(value), true)}</b>
 						</li>
 					))}
@@ -1037,12 +1030,12 @@ async function CompanyMethods(props: {
 			<section class="shell company-methods-intro" id="methods">
 				<div class="section-heading">
 					<div>
-						<Eyebrow>Method inputs</Eyebrow>
-						<h2>Calculations included in the estimate</h2>
+						<Eyebrow>Detailed calculations</Eyebrow>
+						<h2>Methods behind this estimate</h2>
 					</div>
 					<p>
-						Each method is shown in full below. Its output is translated to a
-						current-equivalent valuation before entering the combined estimate.
+						For readers who want the math, each method’s probability inputs,
+						assumptions, sensitivity checks, and source markets are shown below.
 					</p>
 				</div>
 				<nav aria-label={`${props.config.name} valuation methods`}>
@@ -1056,7 +1049,7 @@ async function CompanyMethods(props: {
 								<strong>{methodHeading(value)}</strong>
 								<small>
 									{formatMoney(valuationValue(value), true)} ·{" "}
-									{formatProbability(weight)} ensemble weight
+									{formatProbability(weight)} of combined estimate
 								</small>
 							</div>
 							<b aria-hidden="true">↓</b>
@@ -1096,21 +1089,21 @@ async function CompanyMethods(props: {
 							</nav>
 						</div>
 						<div class="company-method-value">
-							<span>Current-equivalent input</span>
+							<span>Method estimate</span>
 							<strong>{formatMoney(valuationValue(value), true)}</strong>
 							<dl>
 								<div>
-									<dt>Difference from total</dt>
+									<dt>Difference from Rai estimate</dt>
 									<dd>
 										{formatDifference(valuationValue(value), estimate.value)}
 									</dd>
 								</div>
 								<div>
-									<dt>Ensemble weight</dt>
+									<dt>Share of combined estimate</dt>
 									<dd>{formatProbability(weight)}</dd>
 								</div>
 								<div>
-									<dt>Fetched</dt>
+									<dt>Updated</dt>
 									<dd>
 										{value.fetchedAt
 											? formatDateTime(value.fetchedAt)

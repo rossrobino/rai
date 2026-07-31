@@ -104,7 +104,7 @@ function thresholdCompany(value: {
 		name: value.name,
 		code: value.code,
 		sector: value.sector,
-		description: `Polymarket provides an NPM Price threshold curve for ${value.name}, measuring the maximum qualifying valuation reached through December 31, 2026.`,
+		description: `This estimate uses Polymarket markets on how high ${value.name}’s valuation may reach by December 31, 2026.`,
 		methods: [
 			{
 				id: "valuation-high-2026",
@@ -232,7 +232,7 @@ export const companyData = [
 		code: "ANTHROPIC",
 		sector: "Artificial intelligence",
 		description:
-			"Polymarket provides two IPO-capitalization ladders for Anthropic plus a maximum qualifying valuation curve by deadline.",
+			"This estimate combines Polymarket markets about Anthropic’s possible IPO valuation and how high its valuation may reach by the deadline.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
@@ -592,7 +592,7 @@ export const companyData = [
 		code: "OPENAI",
 		sector: "Artificial intelligence",
 		description:
-			"Polymarket provides two IPO-capitalization horizons for OpenAI plus a maximum qualifying valuation curve by deadline.",
+			"This estimate combines Polymarket markets about OpenAI’s possible IPO valuation and how high its valuation may reach by the deadline.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
@@ -881,7 +881,7 @@ export const companyData = [
 		code: "PERPLEXITY",
 		sector: "Artificial intelligence",
 		description:
-			"Polymarket provides two distinct Perplexity signals: an IPO-capitalization scenario and a maximum qualifying valuation by deadline.",
+			"This estimate combines Polymarket markets about Perplexity’s possible IPO valuation and how high its valuation may reach by the deadline.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
@@ -1095,7 +1095,7 @@ export const companyData = [
 		code: "OURA",
 		sector: "Health technology",
 		description:
-			"A Polymarket IPO-cap ladder estimates Oura’s IPO-cap current equivalent from its 2026 outcome distribution.",
+			"This estimate uses Polymarket probabilities for Oura’s possible IPO valuation in 2026.",
 		methods: [
 			{
 				id: "ipo-closing-2026",
@@ -1226,7 +1226,7 @@ export const companyData = [
 		code: "STRAVA",
 		sector: "Fitness technology",
 		description:
-			"Strava’s IPO-cap current equivalent derived from a nine-outcome 2027 Polymarket ladder.",
+			"This estimate uses Polymarket probabilities for Strava’s possible IPO valuation in 2027.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
@@ -1369,7 +1369,7 @@ export const companyData = [
 		code: "DISCORD",
 		sector: "Consumer technology",
 		description:
-			"A Polymarket IPO-cap ladder estimates Discord’s IPO-cap current equivalent from its 2027 outcome distribution.",
+			"This estimate uses Polymarket probabilities for Discord’s possible IPO valuation in 2027.",
 		methods: [
 			{
 				id: "ipo-closing-2027",
