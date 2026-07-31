@@ -1007,6 +1007,81 @@
 		margin-block: 1rem 0;
 	}
 
+	.valuation-history {
+		padding-block: clamp(4rem, 8vw, 7rem) 0;
+	}
+
+	.valuation-history > .section-heading {
+		margin-block-end: 2rem;
+	}
+
+	.history-stats {
+		border-block-start: 1px solid var(--line);
+		border-inline-start: 1px solid var(--line);
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		margin: 0 0 1.5rem;
+	}
+
+	.history-stats > div {
+		border-block-end: 1px solid var(--line);
+		border-inline-end: 1px solid var(--line);
+		display: grid;
+		gap: 0.75rem;
+		padding: 1rem;
+	}
+
+	.history-stats dt {
+		color: var(--muted);
+		font-size: 0.62rem;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+	}
+
+	.history-stats dd {
+		font: 0.74rem/1.4 var(--font-mono);
+		margin: 0;
+	}
+
+	.history-chart-panel {
+		background: var(--surface);
+		border: 1px solid var(--line);
+		padding: clamp(0.75rem, 2vw, 1.5rem);
+	}
+
+	.history-chart {
+		block-size: clamp(21rem, 42vw, 30rem);
+		inline-size: 100%;
+	}
+
+	.history-chart > p {
+		color: var(--muted);
+		display: grid;
+		font-size: 0.78rem;
+		margin: 0;
+		min-block-size: 100%;
+		place-items: center;
+	}
+
+	.history-note,
+	.history-empty > p {
+		color: var(--muted);
+		font-size: 0.78rem;
+		max-inline-size: 42rem;
+	}
+
+	.history-note {
+		margin-block: 1rem 0;
+	}
+
+	.history-empty h2 {
+		margin-block-end: 0.75rem;
+	}
+
+	.history-table {
+		margin-block-start: 1.5rem;
+	}
+
 	.company-methods-intro {
 		padding-block: clamp(5rem, 9vw, 8rem);
 	}
@@ -2300,6 +2375,10 @@
 		}
 
 		.company-valuation {
+			grid-template-columns: 1fr;
+		}
+
+		.history-stats {
 			grid-template-columns: 1fr;
 		}
 

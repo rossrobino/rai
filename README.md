@@ -3,8 +3,9 @@
 Rai is an open-source research interface that converts public Polymarket prices
 into derived current private-company valuations.
 
-The MVP intentionally uses one external market-data source: Polymarket. It does
-not use a database or a persistent cache.
+The MVP intentionally uses one external market-data source: Polymarket. It
+stores one daily valuation observation in Turso so changes can be inspected over
+time.
 
 ## What Rai calculates
 
@@ -36,13 +37,25 @@ allocation rather than gaining extra influence from additional contracts.
 - `@mdit/plugin-katex` and KaTeX
 - uico plus a layered `+style.css`
 - native `fetch` for Polymarket’s public Gamma and Data APIs
+- Drizzle ORM and Turso for historical observations
+- Apache ECharts for client-side history charts
 
 ## Local development
 
 ```sh
 npm install
+npm run db:migrate
 npm run dev
 ```
+
+Copy `.env.example` to `.env` and configure:
+
+- `TURSO_URL` — the Turso database URL;
+- `TURSO_TOKEN` — a token with permission to read and write that database;
+- `CRON_SECRET` — a long random value used to authenticate the snapshot route.
+
+Vite loads the local `.env` file into the server process. Browser code does not
+receive these values.
 
 Useful checks:
 
@@ -61,6 +74,17 @@ In Vercel, select the **Other** framework preset and leave the build and output
 settings at their defaults. Vercel will run the package build script and use the
 generated serverless function and static assets.
 
+Set `TURSO_URL`, `TURSO_TOKEN`, and `CRON_SECRET` in the Vercel project before
+deploying. The generated deployment configuration registers
+`/api/cron/snapshot-valuations` at `0 12 * * *`, or 12:00 UTC once per day. This
+fits the Hobby plan’s daily cron limit. Vercel sends `CRON_SECRET` as a bearer
+token; the route rejects unauthenticated requests and is marked `no-store`.
+
+ISR and the snapshot job are independent. The job writes one observation per
+UTC date. Company pages read the saved history during server rendering and can
+remain cached for up to the configured 10-minute ISR interval after a write.
+Repeated job requests on the same UTC date are idempotent.
+
 ## Routes
 
 - `/` — project overview
@@ -69,6 +93,7 @@ generated serverless function and static assets.
 - `/companies/:name?method=:method` — a method’s current calculation and audit
 - `/api/companies/:name/methods/:method` — a versioned JSON export of the
   current source observations, assumptions, and calculation
+- `/api/cron/snapshot-valuations` — authenticated daily history writer
 - `/methodology` — method directory
 - `/methodology/:method` — build-time-rendered methodology document
 
@@ -91,10 +116,15 @@ responses are cached in memory for 60 seconds and participant lookups for five
 minutes. Failed requests are not cached. The cache resets with the server.
 
 Rai records both Polymarket’s source-record update time and its own fetch time in
-the in-memory observation used for a response. The MVP does not persist
-historical observations, so the current audit is inspectable but not an
-immutable research archive. Each company-method page links to a versioned JSON
-export that can be saved as a reproducible observation snapshot.
+the observation. The daily job stores the combined estimate, its range, method
+availability, and every contributing current-equivalent method input. Company
+pages query up to 365 observations in an async server component, then load the
+ECharts module only when chart data is present. Each company-method page also
+links to a versioned JSON export of the current calculation.
+
+The database schema is in `src/server/db/schema.ts`; generated SQL migrations
+are committed under `drizzle/`. Run `npm run db:generate` after schema changes
+and `npm run db:migrate` to apply pending migrations.
 
 ## Quote selection and validation
 

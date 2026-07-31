@@ -1,4 +1,5 @@
 import { Render, Route, type JSX } from "ovr";
+import * as historyScript from "client:script/history";
 import polymarket from "@/assets/polymarket-icon.svg?no-inline";
 import {
 	companies,
@@ -20,6 +21,11 @@ import {
 	formatMoney,
 	formatProbability,
 } from "@/server/model";
+import {
+	getValuationHistory,
+	recordValuations,
+	type ValuationObservation,
+} from "@/server/history";
 import { getMethod, methods } from "@/server/methods";
 import {
 	fetchCompanyMarkets,
@@ -57,6 +63,7 @@ function Navigation() {
 function Page(props: {
 	title: string;
 	description?: string;
+	head?: JSX.Element;
 	children?: JSX.Element;
 }) {
 	return <Layout {...props} navigation={<Navigation />} />;
@@ -444,7 +451,11 @@ export const company = Route.get("/companies/:name", (c) => {
 
 	const load = resolveBoard(config);
 	return (
-		<Page title={`${config.name} valuation`} description={config.description}>
+		<Page
+			title={`${config.name} valuation`}
+			description={config.description}
+			head={Render.html(historyScript.tags)}
+		>
 			<main id="content">
 				<section class="company-hero shell">
 					<div>
@@ -454,6 +465,7 @@ export const company = Route.get("/companies/:name", (c) => {
 					</div>
 				</section>
 				<CompanyValuationSummary config={config} load={load} />
+				<CompanyValuationHistory config={config} />
 				<CompanyMethods config={config} load={load} />
 			</main>
 		</Page>
@@ -534,6 +546,93 @@ async function loadBoard(config: Company, participants = true) {
 			.sort()[0],
 	};
 }
+
+async function collectValuations() {
+	const observations: ValuationObservation[] = [];
+	const failures: string[] = [];
+	for (let i = 0; i < companies.length; i += 4) {
+		const batch = await Promise.all(
+			companies
+				.slice(i, i + 4)
+				.map(async (config): Promise<ValuationObservation | null> => {
+					try {
+						const result = await loadBoard(config, false);
+						return {
+							companyId: config.id,
+							companySlug: config.slug,
+							value: result.estimate.value,
+							low: result.estimate.low,
+							high: result.estimate.high,
+							methodCount: result.estimate.methods,
+							unavailableMethodCount: result.failed,
+							sourceFetchedAt: result.fetchedAt,
+							inputs: methodWeights(result.loaded).map(({ value, weight }) => ({
+								methodId: value.method.id,
+								method: value.method.method,
+								family: value.method.family,
+								label: methodLabel(value),
+								value: valuationValue(value),
+								weight,
+							})),
+						};
+					} catch {
+						failures.push(config.slug);
+						return null;
+					}
+				}),
+		);
+		observations.push(
+			...batch.filter(
+				(observation): observation is ValuationObservation =>
+					observation != null,
+			),
+		);
+	}
+
+	return { observations, failures };
+}
+
+export const snapshotValuations = Route.get(
+	"/api/cron/snapshot-valuations",
+	async (c) => {
+		c.res.headers.set("Cache-Control", "private, no-store");
+		const secret = process.env.CRON_SECRET;
+		if (!secret) {
+			return c.json({ error: "CRON_SECRET is not configured." }, 503);
+		}
+		if (c.req.headers.get("authorization") !== `Bearer ${secret}`) {
+			return c.json({ error: "Unauthorized." }, 401);
+		}
+
+		const observedAt = new Date();
+		const { observations, failures } = await collectValuations();
+		if (observations.length === 0) {
+			return c.json(
+				{ error: "No company valuations were available for this run." },
+				502,
+			);
+		}
+
+		try {
+			const recorded = await recordValuations(
+				observations,
+				failures.length,
+				observedAt,
+			);
+			return c.json({
+				success: true,
+				...recorded,
+				companies: observations.length,
+				failures,
+			});
+		} catch {
+			return c.json(
+				{ error: "The valuation snapshot could not be stored." },
+				500,
+			);
+		}
+	},
+);
 
 async function resolveBoard(config: Company, participants = true) {
 	try {
@@ -688,6 +787,121 @@ function CompanyValuationSummary(props: {
 			style={`view-transition-name:${companyTransition(props.config)}`}
 		>
 			<CompanyValuationValue {...props} />
+		</section>
+	);
+}
+
+async function CompanyValuationHistory(props: { config: Company }) {
+	let history;
+	try {
+		history = await getValuationHistory(props.config.id);
+	} catch {
+		return (
+			<section class="shell valuation-history history-empty">
+				<Eyebrow>Valuation history</Eyebrow>
+				<h2>Historical observations are temporarily unavailable</h2>
+				<p>
+					The current valuation and its source calculations remain available.
+				</p>
+			</section>
+		);
+	}
+
+	if (history.length === 0) {
+		return (
+			<section class="shell valuation-history history-empty">
+				<Eyebrow>Valuation history</Eyebrow>
+				<h2>Daily tracking starts with the next snapshot</h2>
+				<p>
+					The scheduled observation records the Rai estimate and each available
+					method input once per day.
+				</p>
+			</section>
+		);
+	}
+
+	const first = history[0];
+	const latest = history.at(-1);
+	if (!first || !latest) return null;
+
+	return (
+		<section
+			class="shell valuation-history"
+			aria-labelledby="valuation-history-title"
+		>
+			<header class="section-heading">
+				<div>
+					<Eyebrow>Valuation history</Eyebrow>
+					<h2 id="valuation-history-title">
+						Estimate and method inputs over time
+					</h2>
+				</div>
+				<p>
+					One scheduled observation per day. Lines show the Rai estimate and the
+					current-equivalent inputs available in each run.
+				</p>
+			</header>
+			<dl class="history-stats">
+				<div>
+					<dt>Observations</dt>
+					<dd>{history.length}</dd>
+				</div>
+				<div>
+					<dt>First recorded</dt>
+					<dd>{formatDateTime(first.observedAt)}</dd>
+				</div>
+				<div>
+					<dt>Latest recorded</dt>
+					<dd>{formatDateTime(latest.observedAt)}</dd>
+				</div>
+			</dl>
+			<div class="history-chart-panel">
+				<div
+					class="history-chart"
+					data-valuation-history
+					role="img"
+					aria-label={`${props.config.name} valuation history across ${history.length} daily ${plural(history.length, "observation")}, from ${formatDateTime(first.observedAt)} through ${formatDateTime(latest.observedAt)}.`}
+				>
+					<p>Loading interactive valuation chart…</p>
+				</div>
+				{Render.html(
+					`<script type="application/json">${JSON.stringify(history).replaceAll("<", "\\u003c")}</script>`,
+				)}
+			</div>
+			{history.length === 1 ? (
+				<p class="history-note">
+					The first point establishes a baseline. A trend line will form as
+					daily observations accumulate.
+				</p>
+			) : null}
+			<details class="history-table">
+				<summary>View recorded values</summary>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Observed</th>
+								<th>Rai estimate</th>
+								<th>Input range</th>
+								<th>Inputs</th>
+							</tr>
+						</thead>
+						<tbody>
+							{history.toReversed().map((point) => (
+								<tr>
+									<th>{formatDateTime(point.observedAt)}</th>
+									<td>{formatMoney(point.value, true)}</td>
+									<td>
+										{formatMoney(point.low, true)}–
+										{formatMoney(point.high, true)}
+									</td>
+									<td>{point.methodCount}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</details>
 		</section>
 	);
 }

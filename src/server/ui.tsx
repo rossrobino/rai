@@ -15,6 +15,7 @@ export function Layout(props: {
 	title: string;
 	description?: string;
 	navigation: JSX.Element;
+	head?: JSX.Element;
 	children?: JSX.Element;
 }) {
 	return (
@@ -43,6 +44,7 @@ export function Layout(props: {
 				/>
 				<link rel="icon" href={mark} type="image/svg+xml" />
 				{Render.html(style.tags)}
+				{props.head}
 				<script type="speculationrules">
 					{Render.html(
 						JSON.stringify({
