@@ -582,8 +582,7 @@
 	}
 
 	.market-board {
-		background: var(--ink-line);
-		border: 1px solid var(--ink);
+		background: transparent;
 		display: grid;
 		gap: 1px;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
