@@ -4,7 +4,7 @@ import { md } from "@robino/md";
 import { domco } from "domco";
 import { readFile, writeFile } from "node:fs/promises";
 import { defineConfig, loadEnv } from "vite";
-import { MethodSchema } from "./src/server/method-schema";
+import { MethodSchema } from "./src/server/method-schema.ts";
 
 const deployment = await adapter({
 	config: { maxDuration: 60 },
