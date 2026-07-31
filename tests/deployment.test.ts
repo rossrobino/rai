@@ -14,6 +14,10 @@ const loader = await readFile(
 	new URL("../src/client/history/+script.ts", import.meta.url),
 	"utf8",
 );
+const database = await readFile(
+	new URL("../src/server/db/index.ts", import.meta.url),
+	"utf8",
+);
 
 test("the Vercel output registers one daily valuation snapshot", () => {
 	assert.match(config, /expiration:\s*600/);
@@ -36,4 +40,9 @@ test("ECharts is loaded only when historical data is rendered", () => {
 	assert.match(loader, /if \(elements\.length > 0\)/);
 	assert.match(loader, /import\("\.\/chart"\)/);
 	assert.doesNotMatch(loader, /from "echarts/);
+});
+
+test("the production database uses libSQL's serverless HTTP driver", () => {
+	assert.match(database, /from "drizzle-orm\/libsql\/http"/);
+	assert.doesNotMatch(database, /from "drizzle-orm\/libsql"/);
 });
