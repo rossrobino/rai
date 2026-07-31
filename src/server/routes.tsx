@@ -37,6 +37,7 @@ import {
 } from "@/server/ui";
 
 const ensemble = "current-valuation-ensemble";
+const dashboardTransition = "rai-dashboard";
 
 function Navigation() {
 	return (
@@ -98,7 +99,10 @@ function HomePage() {
 						probability-weighted estimates.
 					</p>
 					<div class="hero-actions">
-						<dashboard.Anchor class="button">
+						<dashboard.Anchor
+							class="button"
+							style={`view-transition-name:${dashboardTransition}`}
+						>
 							Open the dashboard
 						</dashboard.Anchor>
 						<home.Anchor class="text-link" hash="method">
@@ -241,7 +245,10 @@ function DashboardPage() {
 						visible on every card.
 					</p>
 				</div>
-				<div class="market-board">
+				<div
+					class="market-board"
+					style={`view-transition-name:${dashboardTransition}`}
+				>
 					{markets.map(({ config, load }) => (
 						<CompanyMarketCard config={config} load={load} />
 					))}

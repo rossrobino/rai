@@ -80,6 +80,11 @@ test("company tiles use an accessible cross-document view transition", () => {
 		)?.length,
 		2,
 	);
+	assert.equal(
+		routes.match(/style={`view-transition-name:\$\{dashboardTransition\}`}/g)
+			?.length,
+		2,
+	);
 });
 
 test("component colors resolve through semantic theme tokens", () => {
