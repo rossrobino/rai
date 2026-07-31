@@ -21,7 +21,7 @@
 		"drizzle-orm": "^0.45.2",
 		"echarts": "^6.1.0",
 		"katex": "^0.18.1",
-		"ovr": "^6.0.0",
+		"ovr": "^6.2.4",
 		"uico": "^0.12.0"
 	},
 	"devDependencies": {
