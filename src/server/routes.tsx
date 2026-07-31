@@ -65,6 +65,13 @@ function plural(count: number, singular: string, multiple = `${singular}s`) {
 	return count === 1 ? singular : multiple;
 }
 
+function board() {
+	return companies.map((config) => ({
+		config,
+		load: resolveBoard(config, false),
+	}));
+}
+
 export const home = Route.get("/", () => (
 	<Page
 		title="Private-company valuations from market data"
@@ -75,8 +82,6 @@ export const home = Route.get("/", () => (
 ));
 
 function HomePage() {
-	const preview = getCompany("anthropic");
-
 	return (
 		<main id="content">
 			<section class="hero shell">
@@ -101,14 +106,7 @@ function HomePage() {
 						</home.Anchor>
 					</div>
 				</div>
-				{preview ? (
-					<div class="home-hero-card">
-						<CompanyMarketCard
-							config={preview}
-							load={resolveBoard(preview, false)}
-						/>
-					</div>
-				) : null}
+				<LargestCompanyMarketCard board={board()} />
 			</section>
 
 			<section class="tape" aria-label="Model highlights">
@@ -156,6 +154,29 @@ function HomePage() {
 	);
 }
 
+async function LargestCompanyMarketCard(props: {
+	board: ReturnType<typeof board>;
+}) {
+	const loaded = await Promise.all(
+		props.board.map(async (entry) => ({
+			...entry,
+			result: await entry.load,
+		})),
+	);
+	const preview = loaded.sort(
+		(a, b) =>
+			(b.result.value?.estimate.value ?? 0) -
+			(a.result.value?.estimate.value ?? 0),
+	)[0];
+	if (!preview) return null;
+
+	return (
+		<div class="home-hero-card">
+			<CompanyMarketCard config={preview.config} load={preview.load} />
+		</div>
+	);
+}
+
 export const dashboard = Route.get("/dashboard", () => (
 	<Page
 		title="Valuation dashboard"
@@ -169,10 +190,7 @@ function DashboardPage() {
 	const assignments = companies.flatMap((config) => config.methods);
 	const live = assignments.filter((method) => method.storage === "live").length;
 	const families = new Set(assignments.map((method) => method.family)).size;
-	const board = companies.map((config) => ({
-		config,
-		load: resolveBoard(config, false),
-	}));
+	const markets = board();
 
 	return (
 		<main id="content">
@@ -224,7 +242,7 @@ function DashboardPage() {
 					</p>
 				</div>
 				<div class="market-board">
-					{board.map(({ config, load }) => (
+					{markets.map(({ config, load }) => (
 						<CompanyMarketCard config={config} load={load} />
 					))}
 				</div>
