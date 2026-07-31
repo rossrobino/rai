@@ -176,7 +176,11 @@ async function LargestCompanyMarketCard(props: {
 
 	return (
 		<div class="home-hero-card">
-			<CompanyMarketCard config={preview.config} load={preview.load} />
+			<CompanyMarketCard
+				config={preview.config}
+				load={preview.load}
+				transition={false}
+			/>
 		</div>
 	);
 }
@@ -560,18 +564,26 @@ function valuationTransition(config: Company) {
 	return `${companyTransition(config)}-valuation`;
 }
 
-function CompanyMarketCard(props: {
+function CompanyMarketCard({
+	config,
+	load,
+	transition = true,
+}: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
+	transition?: boolean;
 }) {
-	const { config, load } = props;
 	const mode = sourceMode(config);
 
 	return (
 		<company.Anchor
 			class="valuation-card market-card"
 			params={{ name: config.slug }}
-			style={`view-transition-name:${companyTransition(config)}`}
+			style={
+				transition
+					? `view-transition-name:${companyTransition(config)}`
+					: undefined
+			}
 		>
 			<div class="valuation-card-top">
 				<span class={`status ${mode.class}`}>
@@ -579,25 +591,28 @@ function CompanyMarketCard(props: {
 				</span>
 				<span>{config.code}</span>
 			</div>
-			<CompanyMarketValue config={config} load={load} />
+			<CompanyMarketValue config={config} load={load} transition={transition} />
 		</company.Anchor>
 	);
 }
 
-async function CompanyMarketValue(props: {
+async function CompanyMarketValue({
+	config,
+	load,
+	transition = true,
+}: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
+	transition?: boolean;
 }) {
-	const result = await props.load;
+	const result = await load;
 	if (!result.value) {
 		return (
 			<div class="market-card-value unavailable">
 				<p>Valuation signals</p>
 				<strong>—</strong>
 				<span>Market sources are temporarily unavailable.</span>
-				<small>
-					Open {props.config.name} to inspect its configured methods.
-				</small>
+				<small>Open {config.name} to inspect its configured methods.</small>
 			</div>
 		);
 	}
@@ -617,7 +632,11 @@ async function CompanyMarketValue(props: {
 			</p>
 			<div class="valuation-card-estimate">
 				<strong
-					style={`view-transition-name:${valuationTransition(props.config)}`}
+					style={
+						transition
+							? `view-transition-name:${valuationTransition(config)}`
+							: undefined
+					}
 				>
 					{formatMoney(estimate.value, true)}
 				</strong>

@@ -69,21 +69,27 @@ test("company tiles use an accessible cross-document view transition", () => {
 		/::view-transition-group\(\*\)\s*\{[^}]*animation-duration:\s*var\(--motion-view\);[^}]*animation-timing-function:\s*var\(--ease-in-out\);/s,
 	);
 	assert.equal(
-		routes.match(
-			/style={`view-transition-name:\$\{companyTransition\([^)]*\)\}`}/g,
-		)?.length,
+		routes.match(/view-transition-name:\$\{companyTransition\([^)]*\)\}/g)
+			?.length,
 		2,
 	);
 	assert.equal(
-		routes.match(
-			/style={`view-transition-name:\$\{valuationTransition\([^)]*\)\}`}/g,
-		)?.length,
+		routes.match(/view-transition-name:\$\{valuationTransition\([^)]*\)\}/g)
+			?.length,
 		2,
 	);
 	assert.equal(
 		routes.match(/style={`view-transition-name:\$\{dashboardTransition\}`}/g)
 			?.length,
 		2,
+	);
+	assert.match(
+		routes,
+		/<CompanyMarketCard[\s\S]*?transition=\{false\}[\s\S]*?\/>/,
+	);
+	assert.match(
+		css,
+		/\.hero\s*\{[^}]*gap:\s*clamp\(3rem, 6vw, 6rem\);[^}]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(24rem, 28rem\);/s,
 	);
 });
 
