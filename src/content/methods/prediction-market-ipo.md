@@ -5,7 +5,7 @@ summary: Uses market odds for first-day IPO capitalization, then converts the fu
 eyebrow: Method 01
 status: Active
 order: 1
-updated: July 29, 2026
+updated: July 31, 2026
 readTime: 7 minute read
 ---
 
@@ -21,7 +21,7 @@ Polymarket supplies the outcome prices. Rai supplies the representative bracket 
 
 <aside class="method-note">
 <strong>Current implementation</strong>
-<p>Rai uses configured Polymarket events for Anthropic, OpenAI, Perplexity, Oura, Strava, and Discord. Another data source is not used in the MVP.</p>
+<p>Rai applies this method where the company catalog contains a complete Polymarket IPO ladder that passes the configured event, market-title, and source-rule checks. Polymarket is the sole external market-data source in the MVP.</p>
 </aside>
 
 ## 1. Define non-overlapping outcomes

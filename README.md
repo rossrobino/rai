@@ -23,8 +23,9 @@ Rai currently implements two component methods and one ensemble:
 
 The dashboard’s headline is the ensemble result. Component estimates, their
 range, weights, assumptions, and source calculations remain visible for audit.
-With the MVP’s single Polymarket evidence family and equal method weights, two
-available methods receive equal weight.
+With the MVP’s single Polymarket evidence family, each distinct available
+method receives equal total weight. Closely related ladders split one method’s
+allocation rather than gaining extra influence from additional contracts.
 
 ## Stack
 
