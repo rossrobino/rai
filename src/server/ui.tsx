@@ -153,38 +153,64 @@ export function Distribution(props: { result: Result; compact?: boolean }) {
 
 export function AuditTable(props: { result: Result }) {
 	return (
-		<div class="table-wrap">
-			<table>
-				<thead>
-					<tr>
-						<th>Outcome</th>
-						<th>Raw</th>
-						<th>Normalized</th>
-						<th>Assigned value</th>
-						<th>Contribution</th>
-					</tr>
-				</thead>
-				<tbody>
-					{props.result.outcomes.map((outcome) => (
+		<>
+			<div class="table-wrap">
+				<table>
+					<thead>
 						<tr>
-							<th>{outcome.label}</th>
-							<td>{formatProbability(outcome.rawProbability)}</td>
-							<td>{formatProbability(outcome.normalizedProbability)}</td>
-							<td>
-								{outcome.representativeValue == null
-									? "N/A"
-									: formatMoney(outcome.representativeValue)}
-							</td>
-							<td>
-								{outcome.kind === "no_ipo"
-									? "—"
-									: formatMoney(outcome.contribution)}
-							</td>
+							<th>Outcome</th>
+							<th>Raw</th>
+							<th>Normalized</th>
+							<th>Assigned value</th>
+							<th>Contribution</th>
 						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
+					</thead>
+					<tbody>
+						{props.result.outcomes.map((outcome) => (
+							<tr>
+								<th>{outcome.label}</th>
+								<td>{formatProbability(outcome.rawProbability)}</td>
+								<td>{formatProbability(outcome.normalizedProbability)}</td>
+								<td>
+									{outcome.representativeValue == null
+										? "N/A"
+										: formatMoney(outcome.representativeValue)}
+								</td>
+								<td>
+									{outcome.kind === "no_ipo"
+										? "—"
+										: formatMoney(outcome.contribution)}
+								</td>
+							</tr>
+						))}
+					</tbody>
+					<tfoot>
+						<tr>
+							<th>Probability total</th>
+							<td>{formatProbability(props.result.rawProbabilitySum)}</td>
+							<td>{formatProbability(1)}</td>
+							<td>—</td>
+							<td>—</td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+			<details class="audit-disclosure">
+				<summary>Why Rai normalizes the raw total</summary>
+				<p>
+					These independently traded market prices add up to{" "}
+					{formatProbability(props.result.rawProbabilitySum)}, rather than 100%.
+					Rai scales each probability proportionally so the outcomes form a
+					complete distribution.
+				</p>
+				<p>
+					This gap is not a Polymarket fee. It can reflect bid–ask spreads,
+					uneven liquidity, or prices recorded at different times. When the gap
+					is relatively large, normalization can meaningfully affect the
+					estimate.
+				</p>
+			</details>
+		</>
 	);
 }
 

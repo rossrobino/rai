@@ -1278,6 +1278,27 @@
 		overflow-x: auto;
 	}
 
+	tfoot th,
+	tfoot td {
+		background: var(--surface);
+		border-block-start: 2px solid var(--line);
+		font-weight: 700;
+	}
+
+	.audit-disclosure {
+		margin-block-start: 0;
+	}
+
+	.audit-disclosure p {
+		color: var(--muted);
+		font-size: 0.78rem;
+		max-inline-size: 70ch;
+	}
+
+	.audit-disclosure p:last-child {
+		margin-block-end: 1.5rem;
+	}
+
 	.dark-section {
 		background: var(--ink);
 		color: var(--ink-foreground);

@@ -10,6 +10,10 @@ const routes = await readFile(
 	new URL("../src/server/routes.tsx", import.meta.url),
 	"utf8",
 );
+const ui = await readFile(
+	new URL("../src/server/ui.tsx", import.meta.url),
+	"utf8",
+);
 
 test("the project theme extends UICO and supports both color schemes", () => {
 	assert.ok(
@@ -67,6 +71,13 @@ test("valuation comparison rows share aligned grid columns", () => {
 		css,
 		/\.valuation-comparison li\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*subgrid;/s,
 	);
+});
+
+test("normalization context stays with the probability audit table", () => {
+	assert.match(ui, /<tfoot>[\s\S]*?<th>Probability total<\/th>/);
+	assert.match(ui, /<details class="audit-disclosure">/);
+	assert.match(ui, /This gap is not a Polymarket fee\./);
+	assert.doesNotMatch(routes, /Raw binary-market prices total/);
 });
 
 test("company tiles use an accessible cross-document view transition", () => {

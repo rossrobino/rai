@@ -1182,9 +1182,11 @@ function IpoAnalysis(props: {
 				/>
 			</section>
 
-			{current.warnings.map((warning) => (
-				<div class="shell alert warning">{warning}</div>
-			))}
+			{current.warnings
+				.filter((warning) => !warning.startsWith("Raw probabilities total "))
+				.map((warning) => (
+					<div class="shell alert warning">{warning}</div>
+				))}
 
 			<section class="shell section" id={`${value.method.id}-distribution`}>
 				<div class="section-heading">
@@ -1193,9 +1195,8 @@ function IpoAnalysis(props: {
 						<h3>Normalized market probabilities</h3>
 					</div>
 					<p>
-						Raw binary-market prices total{" "}
-						<strong>{formatProbability(current.rawProbabilitySum)}</strong>.
-						They are normalized to a complete distribution before valuation.
+						The chart shows the probability Rai uses for each possible outcome.
+						Source values and adjustment details are in the audit table.
 					</p>
 				</div>
 				<Distribution result={current} />
