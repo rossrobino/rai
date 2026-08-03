@@ -14,6 +14,10 @@ const loader = await readFile(
 	new URL("../src/client/history/+script.ts", import.meta.url),
 	"utf8",
 );
+const chart = await readFile(
+	new URL("../src/client/history/chart.ts", import.meta.url),
+	"utf8",
+);
 const database = await readFile(
 	new URL("../src/server/db/index.ts", import.meta.url),
 	"utf8",
@@ -40,6 +44,11 @@ test("ECharts is loaded only when historical data is rendered", () => {
 	assert.match(loader, /if \(elements\.length > 0\)/);
 	assert.match(loader, /import\("\.\/chart"\)/);
 	assert.doesNotMatch(loader, /from "echarts/);
+});
+
+test("valuation chart series remain visible while the tooltip is active", () => {
+	assert.match(chart, /trigger: "axis"/);
+	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 2);
 });
 
 test("the production database uses libSQL's serverless HTTP driver", () => {

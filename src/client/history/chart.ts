@@ -115,6 +115,7 @@ export function render(element: HTMLElement) {
 				name: "Rai current valuation",
 				type: "line",
 				data: points.map((point) => [point.observedAt, point.value]),
+				emphasis: { disabled: true },
 				lineStyle: { width: 3 },
 				symbol: "circle",
 				symbolSize: 7,
@@ -129,6 +130,7 @@ export function render(element: HTMLElement) {
 					point.inputs.find((input) => input.methodId === methodId)?.value ??
 						null,
 				]),
+				emphasis: { disabled: true },
 				lineStyle: { type: "dashed", width: 1.5 },
 				symbol: "circle",
 				symbolSize: 5,
