@@ -58,6 +58,17 @@ test("source market cards keep long quotes and metadata within their grid", () =
 	assert.doesNotMatch(css, /\n\t\.badge\s*\{/);
 });
 
+test("valuation comparison rows share aligned grid columns", () => {
+	assert.match(
+		css,
+		/\.valuation-comparison ol\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(10rem, 0\.65fr\) minmax\(8rem, 1fr\) auto auto;/s,
+	);
+	assert.match(
+		css,
+		/\.valuation-comparison li\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*subgrid;/s,
+	);
+});
+
 test("company tiles use an accessible cross-document view transition", () => {
 	assert.match(
 		css,
