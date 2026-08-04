@@ -46,9 +46,14 @@ test("ECharts is loaded only when historical data is rendered", () => {
 	assert.doesNotMatch(loader, /from "echarts/);
 });
 
-test("valuation chart series remain visible while the tooltip is active", () => {
+test("valuation chart hover does not hide unrelated series", () => {
 	assert.match(chart, /trigger: "axis"/);
-	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 2);
+	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 1);
+	assert.match(chart, /focus: "none"/);
+	assert.match(
+		chart,
+		/blur:\s*\{[\s\S]*?lineStyle: \{ color, opacity: 0\.42 \}/,
+	);
 });
 
 test("valuation chart inputs use distinct color, line, and point encodings", () => {
@@ -60,7 +65,10 @@ test("valuation chart inputs use distinct color, line, and point encodings", () 
 	}
 	assert.match(chart, /type: "dashed"/);
 	assert.match(chart, /type: "dotted"/);
-	assert.match(chart, /width: 2\.25/);
+	assert.match(chart, /opacity: 0\.42/);
+	assert.match(chart, /opacity: 0\.55/);
+	assert.match(chart, /lineStyle: \{ color, opacity: 1, width: 2\.75 \}/);
+	assert.match(chart, /width: 2,/);
 	assert.match(chart, /width: 3\.5/);
 });
 

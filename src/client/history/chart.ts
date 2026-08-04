@@ -74,6 +74,7 @@ export function render(element: HTMLElement) {
 		animation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
 		animationDuration: 260,
 		animationEasing: "cubicInOut",
+		stateAnimation: { duration: 120, easing: "cubicOut" },
 		color: [
 			resolve(element, "--accent"),
 			...styles.map(({ token }) => resolve(element, token)),
@@ -126,25 +127,45 @@ export function render(element: HTMLElement) {
 				symbol: "circle",
 				symbolSize: 8,
 				showSymbol: points.length < 32,
+				z: 3,
 			},
-			...[...methods].map(([methodId, label], i) => ({
-				name: label,
-				type: "line",
-				connectNulls: false,
-				data: points.map((point) => [
-					point.observedAt,
-					point.inputs.find((input) => input.methodId === methodId)?.value ??
-						null,
-				]),
-				emphasis: { disabled: true },
-				lineStyle: {
-					type: styles[i % styles.length]?.type,
-					width: 2.25,
-				},
-				symbol: styles[i % styles.length]?.symbol,
-				symbolSize: 6,
-				showSymbol: points.length < 32,
-			})),
+			...[...methods].map(([methodId, label], i) => {
+				const style = styles[i % styles.length];
+				if (!style) throw new Error("Missing valuation chart series style");
+				const color = resolve(element, style.token);
+
+				return {
+					name: label,
+					type: "line",
+					connectNulls: false,
+					data: points.map((point) => [
+						point.observedAt,
+						point.inputs.find((input) => input.methodId === methodId)?.value ??
+							null,
+					]),
+					blur: {
+						itemStyle: { color, opacity: 0.55 },
+						lineStyle: { color, opacity: 0.42 },
+					},
+					emphasis: {
+						focus: "none",
+						scale: false,
+						itemStyle: { color, opacity: 1 },
+						lineStyle: { color, opacity: 1, width: 2.75 },
+					},
+					itemStyle: { color, opacity: 0.55 },
+					lineStyle: {
+						color,
+						opacity: 0.42,
+						type: style.type,
+						width: 2,
+					},
+					symbol: style.symbol,
+					symbolSize: 6,
+					showSymbol: points.length < 32,
+					z: 1,
+				};
+			}),
 		],
 	});
 	new ResizeObserver(() => chart.resize()).observe(element);
