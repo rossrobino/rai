@@ -85,14 +85,32 @@ UTC date. Company pages read the saved history during server rendering and can
 remain cached for up to the configured 10-minute ISR interval after a write.
 Repeated job requests on the same UTC date are idempotent.
 
+## Public API
+
+Open `/api` for the endpoint directory. The public read-only endpoints allow
+cross-origin `GET` requests and use the same 10-minute ISR window as the site.
+No API key is required.
+
+Monetary values are expressed in millions of US dollars. Probabilities and
+weights are decimal values from `0` to `1`. Each response includes this unit
+metadata where numeric valuation data is returned.
+
+- `/api/companies` lists the company catalog, configured methods, and links.
+- `/api/companies/:name` returns the current combined valuation and its method
+  estimates.
+- `/api/companies/:name/methods/:method` returns one method’s complete
+  configuration, source observation, assumptions, and calculation.
+
 ## Routes
 
 - `/` — project overview
 - `/dashboard` — one derived current valuation per company with its component inputs
 - `/companies/:name` — derived valuation and company method directory
 - `/companies/:name?method=:method` — a method’s current calculation and audit
-- `/api/companies/:name/methods/:method` — a versioned JSON export of the
-  current source observations, assumptions, and calculation
+- `/api` — public API directory
+- `/api/companies` — public company and method catalog
+- `/api/companies/:name` — current combined company valuation as JSON
+- `/api/companies/:name/methods/:method` — current method calculation as JSON
 - `/api/cron/snapshot-valuations` — authenticated daily history writer
 - `/methodology` — method directory
 - `/methodology/:method` — build-time-rendered methodology document
@@ -120,7 +138,7 @@ the observation. The daily job stores the combined estimate, its range, method
 availability, and every contributing current-equivalent method input. Company
 pages query up to 365 observations in an async server component, then load the
 ECharts module only when chart data is present. Each company-method page also
-links to a versioned JSON export of the current calculation.
+links to its current public API response.
 
 The database schema is in `src/server/db/schema.ts`; generated SQL migrations
 are committed under `drizzle/`. Run `npm run db:generate` after schema changes

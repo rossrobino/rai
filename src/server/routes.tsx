@@ -44,6 +44,10 @@ import {
 
 const ensemble = "current-valuation-ensemble";
 const dashboardTransition = "rai-dashboard";
+const units = {
+	monetaryValues: "millions of USD",
+	probabilities: "decimal values from 0 to 1",
+};
 
 function Navigation() {
 	return (
@@ -71,6 +75,10 @@ function Page(props: {
 
 function plural(count: number, singular: string, multiple = `${singular}s`) {
 	return count === 1 ? singular : multiple;
+}
+
+function expose(headers: Headers) {
+	headers.set("Access-Control-Allow-Origin", "*");
 }
 
 function board() {
@@ -475,9 +483,124 @@ export const company = Route.get("/companies/:name", (c) => {
 	);
 });
 
-export const observation = Route.get(
+export const api = Route.get("/api", (c) => {
+	expose(c.res.headers);
+	return c.json({
+		name: "Rai API",
+		description:
+			"Current private-company valuation estimates derived from public prediction-market data.",
+		units,
+		endpoints: {
+			companies: {
+				method: "GET",
+				path: "/api/companies",
+				description: "List supported companies and their configured methods.",
+			},
+			company: {
+				method: "GET",
+				path: "/api/companies/:name",
+				description:
+					"Get a company’s current combined valuation and method estimates.",
+			},
+			calculation: {
+				method: "GET",
+				path: "/api/companies/:name/methods/:method",
+				description:
+					"Get one method’s configuration, source observation, and full calculation.",
+			},
+		},
+	});
+});
+
+export const apiCompanies = Route.get("/api/companies", (c) => {
+	expose(c.res.headers);
+	return c.json({
+		companies: companies.map((config) => ({
+			id: config.id,
+			slug: config.slug,
+			name: config.name,
+			code: config.code,
+			sector: config.sector,
+			description: config.description,
+			methods: config.methods.map((method) => ({
+				id: method.id,
+				type: method.method,
+				title: methodTitle(method),
+				provider: method.data.provider,
+				links: {
+					calculation: `/api/companies/${config.slug}/methods/${method.id}`,
+					methodology: `/methodology/${method.method}`,
+				},
+			})),
+			links: {
+				api: `/api/companies/${config.slug}`,
+				web: `/companies/${config.slug}`,
+			},
+		})),
+	});
+});
+
+export const apiCompany = Route.get("/api/companies/:name", async (c) => {
+	expose(c.res.headers);
+	const config = getCompany(c.params.name);
+	if (!config) {
+		return c.json({ error: "Company not found." }, 404);
+	}
+
+	try {
+		const { estimate, failed, fetchedAt, loaded } = await loadBoard(
+			config,
+			false,
+		);
+		return c.json({
+			company: {
+				id: config.id,
+				slug: config.slug,
+				name: config.name,
+				code: config.code,
+				sector: config.sector,
+				description: config.description,
+			},
+			units,
+			valuation: {
+				value: estimate.value,
+				low: estimate.low,
+				high: estimate.high,
+				methodCount: estimate.methods,
+				unavailableMethodCount: failed,
+				fetchedAt,
+			},
+			methods: methodWeights(loaded).map(({ value, weight }) => ({
+				id: value.method.id,
+				type: value.method.method,
+				label: methodLabel(value),
+				provider: value.method.data.provider,
+				value: valuationValue(value),
+				weight,
+				fetchedAt: value.fetchedAt,
+				calculation: `/api/companies/${config.slug}/methods/${value.method.id}`,
+			})),
+			links: {
+				web: `/companies/${config.slug}`,
+			},
+		});
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? error.message
+						: "The company valuation is unavailable.",
+			},
+			502,
+		);
+	}
+});
+
+export const apiCalculation = Route.get(
 	"/api/companies/:name/methods/:method",
 	async (c) => {
+		expose(c.res.headers);
 		const config = getCompany(c.params.name);
 		const method = config
 			? getCompanyMethod(config, c.params.method)
@@ -490,16 +613,29 @@ export const observation = Route.get(
 		try {
 			const loaded = await loadMethod(config, method);
 			return c.json({
-				schemaVersion: 1,
 				company: {
 					id: config.id,
 					slug: config.slug,
 					name: config.name,
+					code: config.code,
 				},
-				method,
+				units,
+				method: {
+					id: method.id,
+					type: method.method,
+					title: methodHeading(loaded),
+					provider: method.data.provider,
+					configuration: method,
+				},
 				observation: {
 					fetchedAt: loaded.fetchedAt,
+					value: valuationValue(loaded),
 					calculation: loaded.current,
+				},
+				links: {
+					company: `/api/companies/${config.slug}`,
+					web: `/companies/${config.slug}#${method.id}`,
+					methodology: `/methodology/${method.method}`,
 				},
 			});
 		} catch (error) {
@@ -1077,15 +1213,15 @@ async function CompanyMethods(props: {
 								<methodology.Anchor params={{ method: value.method.method }}>
 									Read methodology <span aria-hidden="true">↗</span>
 								</methodology.Anchor>
-								<observation.Anchor
+								<apiCalculation.Anchor
 									params={{
 										name: props.config.slug,
 										method: value.method.id,
 									}}
 									target="_blank"
 								>
-									Export current JSON <span aria-hidden="true">↗</span>
-								</observation.Anchor>
+									View API response <span aria-hidden="true">↗</span>
+								</apiCalculation.Anchor>
 							</nav>
 						</div>
 						<div class="company-method-value">
