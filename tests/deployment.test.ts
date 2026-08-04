@@ -51,6 +51,19 @@ test("valuation chart series remain visible while the tooltip is active", () => 
 	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 2);
 });
 
+test("valuation chart inputs use distinct color, line, and point encodings", () => {
+	for (const token of ["series-1", "series-2", "series-3", "series-4"]) {
+		assert.match(chart, new RegExp(`--${token}`));
+	}
+	for (const symbol of ["diamond", "rect", "triangle", "roundRect"]) {
+		assert.match(chart, new RegExp(`symbol: "${symbol}"`));
+	}
+	assert.match(chart, /type: "dashed"/);
+	assert.match(chart, /type: "dotted"/);
+	assert.match(chart, /width: 2\.25/);
+	assert.match(chart, /width: 3\.5/);
+});
+
 test("the production database uses libSQL's serverless HTTP driver", () => {
 	assert.match(database, /from "drizzle-orm\/libsql\/http"/);
 	assert.doesNotMatch(database, /from "drizzle-orm\/libsql"/);

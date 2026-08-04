@@ -62,16 +62,22 @@ export function render(element: HTMLElement) {
 			point.inputs.map((input) => [input.methodId, input.label] as const),
 		),
 	);
-	const colors = ["--positive", "--warning", "--muted"].map((token) =>
-		resolve(element, token),
-	);
+	const styles = [
+		{ token: "--series-1", type: "dashed", symbol: "diamond" },
+		{ token: "--series-2", type: "dotted", symbol: "rect" },
+		{ token: "--series-3", type: [10, 4, 2, 4], symbol: "triangle" },
+		{ token: "--series-4", type: [4, 3], symbol: "roundRect" },
+	];
 	element.replaceChildren();
 	const chart = init(element, undefined, { renderer: "canvas" });
 	chart.setOption({
 		animation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
 		animationDuration: 260,
 		animationEasing: "cubicInOut",
-		color: [resolve(element, "--accent"), ...colors],
+		color: [
+			resolve(element, "--accent"),
+			...styles.map(({ token }) => resolve(element, token)),
+		],
 		grid: {
 			containLabel: true,
 			left: 8,
@@ -116,12 +122,12 @@ export function render(element: HTMLElement) {
 				type: "line",
 				data: points.map((point) => [point.observedAt, point.value]),
 				emphasis: { disabled: true },
-				lineStyle: { width: 3 },
+				lineStyle: { width: 3.5 },
 				symbol: "circle",
-				symbolSize: 7,
+				symbolSize: 8,
 				showSymbol: points.length < 32,
 			},
-			...[...methods].map(([methodId, label]) => ({
+			...[...methods].map(([methodId, label], i) => ({
 				name: label,
 				type: "line",
 				connectNulls: false,
@@ -131,9 +137,12 @@ export function render(element: HTMLElement) {
 						null,
 				]),
 				emphasis: { disabled: true },
-				lineStyle: { type: "dashed", width: 1.5 },
-				symbol: "circle",
-				symbolSize: 5,
+				lineStyle: {
+					type: styles[i % styles.length]?.type,
+					width: 2.25,
+				},
+				symbol: styles[i % styles.length]?.symbol,
+				symbolSize: 6,
 				showSymbol: points.length < 32,
 			})),
 		],
