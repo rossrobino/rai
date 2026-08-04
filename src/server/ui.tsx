@@ -27,12 +27,12 @@ export function Layout(props: {
 				<meta name="apple-mobile-web-app-title" content="Rai" />
 				<meta
 					name="theme-color"
-					content="#f2ede4"
+					content="#efede8"
 					media="(prefers-color-scheme: light)"
 				/>
 				<meta
 					name="theme-color"
-					content="#171512"
+					content="#171613"
 					media="(prefers-color-scheme: dark)"
 				/>
 				<meta

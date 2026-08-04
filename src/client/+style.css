@@ -18,59 +18,59 @@
 	:root {
 		color-scheme: light dark;
 
-		/* Build the product palette on UICO's warm neutral ramp. */
-		--base: oklch(0.57 0.025 80);
-		--light-start: 0.985;
-		--light-end: 0.12;
-		--chroma-start: 0.008;
+		/* Extend UICO's base ramp into a low-chroma mineral stone palette. */
+		--base: oklch(0.56 0.018 72);
+		--light-start: 0.97;
+		--light-end: 0.15;
+		--chroma-start: 0.006;
 		--chroma-end: 0.022;
-		--background: light-dark(oklch(0.96 0.014 86), oklch(0.135 0.012 75));
-		--surface: light-dark(oklch(0.985 0.008 86), oklch(0.19 0.014 75));
-		--surface-muted: light-dark(oklch(0.92 0.017 84), oklch(0.225 0.016 75));
-		--foreground: light-dark(oklch(0.235 0.014 75), oklch(0.86 0.013 82));
-		--heading-foreground: light-dark(oklch(0.18 0.012 75), oklch(0.95 0.01 85));
-		--copy: light-dark(oklch(0.36 0.015 76), oklch(0.78 0.013 82));
+		--background: light-dark(var(--base-100), var(--base-950));
+		--surface: light-dark(var(--base-50), var(--base-900));
+		--surface-muted: light-dark(var(--base-200), var(--base-800));
+		--foreground: light-dark(var(--base-800), var(--base-300));
+		--heading-foreground: light-dark(var(--base-950), var(--base-100));
+		--copy: light-dark(var(--base-700), var(--base-400));
 		--muted-background: var(--surface-muted);
-		--muted-foreground: light-dark(oklch(0.48 0.014 75), oklch(0.67 0.013 80));
+		--muted-foreground: light-dark(var(--base-600), var(--base-500));
 		--muted: var(--muted-foreground);
-		--line: light-dark(oklch(0.83 0.018 82), oklch(0.31 0.016 75));
+		--line: light-dark(var(--base-300), var(--base-700));
 		--border: 1px solid var(--line);
 
-		/* UICO actions and the site's coral market accent. */
-		--primary-background: light-dark(oklch(0.2 0.013 75), oklch(0.91 0.012 84));
-		--primary-foreground: light-dark(oklch(0.97 0.01 85), oklch(0.17 0.012 75));
-		--primary-hover: light-dark(oklch(0.29 0.015 75), oklch(0.82 0.013 82));
+		/* Neutral UICO actions and a muted mineral-blue product accent. */
+		--primary-background: light-dark(var(--base-900), var(--base-100));
+		--primary-foreground: light-dark(var(--base-50), var(--base-900));
+		--primary-hover: light-dark(var(--base-800), var(--base-200));
 		--secondary-background: var(--surface-muted);
 		--secondary-foreground: var(--heading-foreground);
-		--accent: light-dark(oklch(0.65 0.2 43), oklch(0.73 0.17 46));
+		--accent: light-dark(oklch(0.52 0.12 240), oklch(0.71 0.1 238));
 		--accent-background: var(--accent);
-		--accent-foreground: light-dark(oklch(0.205 0.055 40), oklch(0.18 0.05 40));
-		--accent-hover: light-dark(oklch(0.7 0.19 45), oklch(0.78 0.15 48));
-		--accent-dark: light-dark(oklch(0.5 0.17 40), oklch(0.82 0.13 49));
-		--accent-muted: light-dark(oklch(0.36 0.095 41), oklch(0.34 0.085 41));
+		--accent-foreground: light-dark(
+			oklch(0.97 0.008 75),
+			oklch(0.18 0.035 243)
+		);
+		--accent-hover: light-dark(oklch(0.58 0.115 238), oklch(0.76 0.085 236));
+		--accent-dark: light-dark(oklch(0.43 0.105 242), oklch(0.81 0.07 236));
+		--accent-muted: light-dark(oklch(0.9 0.025 235), oklch(0.33 0.055 244));
 		--accent-line: color-mix(
 			in oklch,
 			var(--accent-foreground) 30%,
 			transparent
 		);
 
-		/* Dense panels stay dark, but lift above the page in dark mode. */
-		--ink: light-dark(oklch(0.18 0.012 75), oklch(0.205 0.015 75));
-		--ink-foreground: light-dark(oklch(0.955 0.01 85), oklch(0.93 0.011 84));
-		--ink-muted: light-dark(oklch(0.71 0.012 82), oklch(0.69 0.012 82));
-		--ink-subtle: light-dark(oklch(0.53 0.012 80), oklch(0.56 0.012 80));
+		/* Dense panels stay stone-dark, but lift above the page in dark mode. */
+		--ink: light-dark(oklch(0.17 0.01 72), oklch(0.205 0.012 72));
+		--ink-foreground: light-dark(oklch(0.96 0.006 72), oklch(0.93 0.008 72));
+		--ink-muted: light-dark(oklch(0.72 0.009 72), oklch(0.69 0.01 72));
+		--ink-subtle: light-dark(oklch(0.54 0.01 72), oklch(0.56 0.011 72));
 		--ink-line: light-dark(
-			oklch(0.98 0.006 85 / 18%),
-			oklch(0.98 0.006 85 / 14%)
+			oklch(0.98 0.004 72 / 18%),
+			oklch(0.98 0.004 72 / 14%)
 		);
 		--ink-grid: light-dark(
-			oklch(0.98 0.006 85 / 7%),
-			oklch(0.98 0.006 85 / 6%)
+			oklch(0.98 0.004 72 / 7%),
+			oklch(0.98 0.004 72 / 6%)
 		);
-		--shadow: light-dark(
-			oklch(0.17 0.012 75 / 15%),
-			oklch(0.04 0.006 75 / 45%)
-		);
+		--shadow: light-dark(oklch(0.16 0.01 72 / 15%), oklch(0.04 0.006 72 / 45%));
 
 		/* Status colors include their own surfaces and borders. */
 		--positive: light-dark(oklch(0.47 0.12 155), oklch(0.75 0.12 155));
@@ -87,9 +87,9 @@
 			oklch(0.98 0.005 28),
 			oklch(0.16 0.03 28)
 		);
-		--track: light-dark(oklch(0.86 0.015 82), oklch(0.28 0.015 77));
-		--aside: light-dark(oklch(0.9 0.022 83), oklch(0.21 0.02 78));
-		--code-background: light-dark(oklch(0.91 0.017 83), oklch(0.235 0.016 76));
+		--track: light-dark(var(--base-300), var(--base-800));
+		--aside: light-dark(var(--base-200), var(--base-900));
+		--code-background: light-dark(var(--base-200), var(--base-800));
 		--radius: 0.2rem;
 		--border-radius: var(--radius);
 		--font-family-sans:

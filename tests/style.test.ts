@@ -39,6 +39,13 @@ test("the project theme extends UICO and supports both color schemes", () => {
 	]) {
 		assert.match(css, new RegExp(`--${token}:\\s*light-dark\\(`));
 	}
+
+	assert.match(css, /--base:\s*oklch\(0\.56 0\.018 72\);/);
+	assert.match(
+		css,
+		/--accent:\s*light-dark\(oklch\(0\.52 0\.12 240\), oklch\(0\.71 0\.1 238\)\);/,
+	);
+	assert.doesNotMatch(ui, /#f2ede4|#171512/);
 });
 
 test("numeric text uses tabular figures throughout the document", () => {
