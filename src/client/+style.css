@@ -552,7 +552,7 @@
 	.market-board {
 		background: transparent;
 		display: grid;
-		gap: var(--size-2);
+		gap: 1px;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
