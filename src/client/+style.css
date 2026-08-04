@@ -1361,6 +1361,7 @@
 
 	.formula-steps h3,
 	.formula-steps h4 {
+		color: var(--ink-foreground);
 		font-family: var(--font-serif);
 		font-size: 1.4rem;
 		font-weight: 400;
@@ -1374,6 +1375,7 @@
 	}
 
 	.formula-steps li > strong {
+		color: var(--ink-foreground);
 		font-family: var(--font-serif);
 		font-size: clamp(1.7rem, 3vw, 3rem);
 		font-weight: 400;

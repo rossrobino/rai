@@ -170,3 +170,14 @@ test("component colors resolve through semantic theme tokens", () => {
 		/(?:color|background(?:-color)?):\s*(?:white|black)\s*;/i,
 	);
 });
+
+test("calculation steps keep readable text on dark sections", () => {
+	assert.match(
+		css,
+		/\.formula-steps h3,[\s\S]*?\.formula-steps h4\s*\{[^}]*color:\s*var\(--ink-foreground\);/s,
+	);
+	assert.match(
+		css,
+		/\.formula-steps li > strong\s*\{[^}]*color:\s*var\(--ink-foreground\);/s,
+	);
+});
