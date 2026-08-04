@@ -36,6 +36,7 @@ import {
 	AssumptionList,
 	AuditTable,
 	BrandMark,
+	Caveat,
 	Distribution,
 	Eyebrow,
 	Layout,
@@ -47,6 +48,13 @@ const dashboardTransition = "rai-dashboard";
 const units = {
 	monetaryValues: "millions of USD",
 	probabilities: "decimal values from 0 to 1",
+};
+
+type Quote = {
+	bid: number | null;
+	ask: number | null;
+	sourceUpdatedAt: string | null;
+	fetchedAt: string;
 };
 
 function Navigation() {
@@ -363,6 +371,19 @@ function methodWeights(loaded: LoadedMethod[]) {
 function formatDifference(value: number, total: number) {
 	const difference = total === 0 ? 0 : value / total - 1;
 	return `${difference > 0 ? "+" : ""}${formatProbability(difference)}`;
+}
+
+function wide(quote: Quote) {
+	return quote.bid != null && quote.ask != null && quote.ask - quote.bid > 0.1;
+}
+
+function stale(quote: Quote) {
+	return (
+		quote.sourceUpdatedAt != null &&
+		new Date(quote.fetchedAt).getTime() -
+			new Date(quote.sourceUpdatedAt).getTime() >
+			24 * 60 * 60 * 1000
+	);
 }
 
 async function loadMethod(
@@ -1066,12 +1087,22 @@ async function CompanyValuationValue(props: {
 				<p>
 					{estimate.methods === 1
 						? `A market-derived estimate of what ${props.config.name} may be worth today. The full calculation and assumptions are shown below.`
-						: `Rai combines ${estimate.methods} market-derived estimates into this current valuation. The range is the lowest-to-highest method result, not a confidence interval.`}
+						: `Rai combines ${estimate.methods} market-derived estimates into this current valuation.`}
 				</p>
 			</div>
 			<dl>
 				<div>
-					<dt>Estimate range</dt>
+					<dt class="data-with-caveat">
+						Estimate range
+						{estimate.methods > 1 ? (
+							<Caveat label="About the estimate range">
+								<p>
+									This is the lowest-to-highest method result, not a confidence
+									interval.
+								</p>
+							</Caveat>
+						) : null}
+					</dt>
 					<dd>
 						{formatMoney(estimate.low, true)}–{formatMoney(estimate.high, true)}
 					</dd>
@@ -1140,10 +1171,15 @@ async function CompanyValuationValue(props: {
 					))}
 				</ol>
 				{failed > 0 ? (
-					<p class="valuation-comparison-note">
-						{failed} configured {failed === 1 ? "method is" : "methods are"}{" "}
-						currently unavailable and excluded from the estimate.
-					</p>
+					<details class="inline-disclosure warning-disclosure">
+						<summary>
+							{failed} configured {plural(failed, "method")} unavailable
+						</summary>
+						<p>
+							Unavailable methods are excluded before the active weights are
+							normalized.
+						</p>
+					</details>
 				) : null}
 			</div>
 		</>
@@ -1193,10 +1229,12 @@ async function CompanyMethods(props: {
 					))}
 				</nav>
 				{failed > 0 ? (
-					<div class="alert warning">
-						{failed} configured {failed === 1 ? "method is" : "methods are"} not
-						available in this response.
-					</div>
+					<details class="inline-disclosure warning-disclosure">
+						<summary>
+							{failed} configured {plural(failed, "method")} unavailable
+						</summary>
+						<p>The unavailable calculation is omitted from this list.</p>
+					</details>
 				) : null}
 			</section>
 			{weights.map(({ value, weight }, i) => (
@@ -1317,12 +1355,6 @@ function IpoAnalysis(props: {
 					note={`By ${formatDate(assumptions.expectedDate)}`}
 				/>
 			</section>
-
-			{current.warnings
-				.filter((warning) => !warning.startsWith("Raw probabilities total "))
-				.map((warning) => (
-					<div class="shell alert warning">{warning}</div>
-				))}
 
 			<section class="shell section" id={`${value.method.id}-distribution`}>
 				<div class="section-heading">
@@ -1478,10 +1510,27 @@ function IpoAnalysis(props: {
 							<dl>
 								<div>
 									<dt>Bid / ask</dt>
-									<dd>
-										{outcome.bid == null ? "—" : formatProbability(outcome.bid)}{" "}
-										/{" "}
-										{outcome.ask == null ? "—" : formatProbability(outcome.ask)}
+									<dd class="data-with-caveat">
+										<span>
+											{outcome.bid == null
+												? "—"
+												: formatProbability(outcome.bid)}{" "}
+											/{" "}
+											{outcome.ask == null
+												? "—"
+												: formatProbability(outcome.ask)}
+										</span>
+										{wide(outcome) ? (
+											<Caveat label="Wide bid–ask spread" warning>
+												<p>
+													The spread is{" "}
+													{formatProbability(
+														(outcome.ask ?? 0) - (outcome.bid ?? 0),
+													)}
+													, above Rai’s 10 percentage-point warning threshold.
+												</p>
+											</Caveat>
+										) : null}
 									</dd>
 								</div>
 								<div>
@@ -1494,11 +1543,21 @@ function IpoAnalysis(props: {
 								</div>
 								<div>
 									<dt>Provider / fetched</dt>
-									<dd>
-										{outcome.sourceUpdatedAt
-											? formatDateTime(outcome.sourceUpdatedAt)
-											: "—"}{" "}
-										/ {formatDateTime(outcome.fetchedAt)}
+									<dd class="data-with-caveat">
+										<span>
+											{outcome.sourceUpdatedAt
+												? formatDateTime(outcome.sourceUpdatedAt)
+												: "—"}{" "}
+											/ {formatDateTime(outcome.fetchedAt)}
+										</span>
+										{stale(outcome) ? (
+											<Caveat label="Provider record may be stale" warning>
+												<p>
+													The provider record was last updated more than 24
+													hours before Rai fetched it.
+												</p>
+											</Caveat>
+										) : null}
 									</dd>
 								</div>
 							</dl>
@@ -1510,20 +1569,22 @@ function IpoAnalysis(props: {
 				</div>
 			</section>
 
-			<section class="shell disclosure prose">
-				<Eyebrow>Important limitations</Eyebrow>
-				<h3>Scope and limitations</h3>
-				<p>
-					Prediction prices may be illiquid, stale, or distorted. Open-ended
-					brackets require judgment. First-day IPO market capitalization is not
-					intrinsic value, and this model does not account for future dilution,
-					capital raised, or operating fundamentals.
-				</p>
-				<p>
-					This estimate is not an ownership interest in {config.name}, an offer
-					to buy or sell securities, or investment advice.
-				</p>
-			</section>
+			<details class="shell disclosure disclosure-details">
+				<summary>Important limitations</summary>
+				<div class="prose">
+					<h3>Scope and limitations</h3>
+					<p>
+						Prediction prices may be illiquid, stale, or distorted. Open-ended
+						brackets require judgment. First-day IPO market capitalization is
+						not intrinsic value, and this model does not account for future
+						dilution, capital raised, or operating fundamentals.
+					</p>
+					<p>
+						This estimate is not an ownership interest in {config.name}, an
+						offer to buy or sell securities, or investment advice.
+					</p>
+				</div>
+			</details>
 		</>
 	);
 }
@@ -1586,10 +1647,6 @@ function ThresholdAnalysis(props: {
 					note="Open upper-tail probability"
 				/>
 			</section>
-
-			{current.warnings.map((warning) => (
-				<div class="shell alert warning">{warning}</div>
-			))}
 
 			<section class="shell section" id={`${value.method.id}-distribution`}>
 				<div class="section-heading">
@@ -1821,72 +1878,145 @@ function ThresholdAnalysis(props: {
 					</div>
 					<ProviderIdentity
 						id={value.method.data.provider}
-						note="Gamma and Data APIs · wallet counts are diagnostic only"
+						note="Gamma and Data APIs"
 					/>
 				</div>
-				<div class="source-list">
-					{current.thresholds.map((threshold) => (
-						<article>
-							<div>
-								<span class="badge">{threshold.selectedMethod}</span>
-								<h4>{threshold.label}</h4>
-								<p>{threshold.sourceQuestion}</p>
-							</div>
-							<dl>
+				<div class="source-list source-list-four">
+					{current.thresholds.map((threshold, i) => {
+						const adjusted =
+							Math.abs(
+								threshold.rawProbability - threshold.adjustedProbability,
+							) > 0.001;
+						const tail =
+							i === current.thresholds.length - 1 &&
+							threshold.adjustedProbability > 0.1;
+
+						return (
+							<article>
 								<div>
-									<dt>Source / fitted</dt>
-									<dd>
-										{formatProbability(threshold.rawProbability)} /{" "}
-										{formatProbability(threshold.adjustedProbability)}
-									</dd>
+									<span class="badge">{threshold.selectedMethod}</span>
+									<h4>{threshold.label}</h4>
+									<p>{threshold.sourceQuestion}</p>
 								</div>
-								<div>
-									<dt>Wallets / volume</dt>
-									<dd>
-										{threshold.participants == null
-											? "—"
-											: threshold.participants.toLocaleString("en-US")}{" "}
-										/{" "}
-										{threshold.volume == null
-											? "—"
-											: `$${Math.round(threshold.volume).toLocaleString("en-US")}`}
-									</dd>
-								</div>
-								<div>
-									<dt>Provider / fetched</dt>
-									<dd>
-										{threshold.sourceUpdatedAt
-											? formatDateTime(threshold.sourceUpdatedAt)
-											: "—"}{" "}
-										/ {formatDateTime(threshold.fetchedAt)}
-									</dd>
-								</div>
-							</dl>
-							<a href={threshold.sourceUrl} target="_blank" rel="noreferrer">
-								View market <span aria-hidden="true">↗</span>
-							</a>
-						</article>
-					))}
+								<dl>
+									<div>
+										<dt>Source / fitted</dt>
+										<dd class="data-with-caveat">
+											<span>
+												{formatProbability(threshold.rawProbability)} /{" "}
+												{formatProbability(threshold.adjustedProbability)}
+											</span>
+											{adjusted || tail ? (
+												<Caveat label="About this fitted threshold" warning>
+													{adjusted ? (
+														<p>
+															Rai adjusted this quote to preserve a
+															non-increasing threshold curve.
+														</p>
+													) : null}
+													{tail ? (
+														<p>
+															This highest threshold leaves more than 10%
+															probability in the open upper tail, so its
+															representative-value assumption is material.
+														</p>
+													) : null}
+												</Caveat>
+											) : null}
+										</dd>
+									</div>
+									<div>
+										<dt>Bid / ask</dt>
+										<dd class="data-with-caveat">
+											<span>
+												{threshold.bid == null
+													? "—"
+													: formatProbability(threshold.bid)}{" "}
+												/{" "}
+												{threshold.ask == null
+													? "—"
+													: formatProbability(threshold.ask)}
+											</span>
+											{wide(threshold) ? (
+												<Caveat label="Wide bid–ask spread" warning>
+													<p>
+														The spread is{" "}
+														{formatProbability(
+															(threshold.ask ?? 0) - (threshold.bid ?? 0),
+														)}
+														, above Rai’s 10 percentage-point warning threshold.
+													</p>
+												</Caveat>
+											) : null}
+										</dd>
+									</div>
+									<div>
+										<dt>Wallets / volume</dt>
+										<dd class="data-with-caveat">
+											<span>
+												{threshold.participants == null
+													? "—"
+													: threshold.participants.toLocaleString("en-US")}{" "}
+												{" / "}
+												{threshold.volume == null
+													? "—"
+													: `$${Math.round(threshold.volume).toLocaleString("en-US")}`}
+											</span>
+											<Caveat label="About wallet counts">
+												<p>
+													These are trading wallets, not verified people. They
+													are diagnostic only and do not affect the fit.
+												</p>
+											</Caveat>
+										</dd>
+									</div>
+									<div>
+										<dt>Provider / fetched</dt>
+										<dd class="data-with-caveat">
+											<span>
+												{threshold.sourceUpdatedAt
+													? formatDateTime(threshold.sourceUpdatedAt)
+													: "—"}{" "}
+												/ {formatDateTime(threshold.fetchedAt)}
+											</span>
+											{stale(threshold) ? (
+												<Caveat label="Provider record may be stale" warning>
+													<p>
+														The provider record was last updated more than 24
+														hours before Rai fetched it.
+													</p>
+												</Caveat>
+											) : null}
+										</dd>
+									</div>
+								</dl>
+								<a href={threshold.sourceUrl} target="_blank" rel="noreferrer">
+									View market <span aria-hidden="true">↗</span>
+								</a>
+							</article>
+						);
+					})}
 				</div>
 			</section>
 
-			<section class="shell disclosure prose">
-				<Eyebrow>Important limitations</Eyebrow>
-				<h3>Scope and limitations</h3>
-				<p>
-					The contracts resolve on the highest qualifying non-public-market or
-					public-market valuation observed before the deadline. The estimate is
-					path-dependent and should not be read as a terminal, intrinsic, or
-					year-end or current value. Reported participants are trading wallets,
-					not verified people, and do not affect the fit. Thin markets,
-					correlated contract errors, the chosen floor, and the open upper tail
-					can all affect the result.
-				</p>
-				<p>
-					This estimate is not an ownership interest in {config.name}, an offer
-					to buy or sell securities, or investment advice.
-				</p>
-			</section>
+			<details class="shell disclosure disclosure-details">
+				<summary>Important limitations</summary>
+				<div class="prose">
+					<h3>Scope and limitations</h3>
+					<p>
+						The contracts resolve on the highest qualifying non-public-market or
+						public-market valuation observed before the deadline. The estimate
+						is path-dependent and should not be read as a terminal, intrinsic,
+						year-end, or current value. Thin markets, correlated contract
+						errors, the chosen floor, and the open upper tail can all affect the
+						result.
+					</p>
+					<p>
+						This estimate is not an ownership interest in {config.name}, an
+						offer to buy or sell securities, or investment advice.
+					</p>
+				</div>
+			</details>
 		</>
 	);
 }
@@ -1930,9 +2060,8 @@ function MethodSources(props: { method: string }) {
 			<Eyebrow>Data provenance</Eyebrow>
 			<h2>Data sources and permissions</h2>
 			<p>
-				Provider names identify the origin of source data. Availability reflects
-				the provider’s published terms for this use; it does not imply a
-				partnership or endorsement.
+				Provider names identify the origin of source data. Open a provider’s
+				notice for usage and attribution context.
 			</p>
 			<div class="provider-grid">
 				{sources.map((provider) => (
@@ -1951,7 +2080,10 @@ function MethodSources(props: { method: string }) {
 							</span>
 						</header>
 						<p>{provider.description}</p>
-						<p class="provider-notice">{provider.notice}</p>
+						<details class="provider-notice">
+							<summary>Usage and attribution</summary>
+							<p>{provider.notice}</p>
+						</details>
 						<nav aria-label={`${provider.name} source documentation`}>
 							<a href={provider.website} target="_blank" rel="noreferrer">
 								Provider

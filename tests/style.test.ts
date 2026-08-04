@@ -103,6 +103,29 @@ test("normalization context stays with the probability audit table", () => {
 	assert.doesNotMatch(routes, /Raw binary-market prices total/);
 });
 
+test("warnings and limitations stay beside their related data", () => {
+	assert.match(ui, /export function Caveat/);
+	assert.match(
+		ui,
+		/<summary title=\{props\.label\} aria-label=\{props\.label\}>/,
+	);
+	assert.match(routes, /wide\(outcome\)[\s\S]*?Wide bid–ask spread/);
+	assert.match(routes, /stale\(outcome\)[\s\S]*?Provider record may be stale/);
+	assert.match(routes, /adjusted \|\| tail[\s\S]*?About this fitted threshold/);
+	assert.match(routes, /<details class="provider-notice">/);
+	assert.equal(
+		routes.match(/<details class="shell disclosure disclosure-details">/g)
+			?.length,
+		2,
+	);
+	assert.doesNotMatch(routes, /class="(?:shell )?alert warning"/);
+	assert.match(css, /\.data-caveat\s*\{[^}]*position:\s*relative;/s);
+	assert.match(
+		css,
+		/@media \(max-width: 620px\)[\s\S]*?\.data-caveat > div\s*\{[^}]*inset-block:\s*auto 1rem;[^}]*inset-inline:\s*1rem;[^}]*position:\s*fixed;/s,
+	);
+});
+
 test("company tiles use an accessible cross-document view transition", () => {
 	assert.match(
 		css,

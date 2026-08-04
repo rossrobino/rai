@@ -95,6 +95,22 @@ export function Eyebrow(props: { children?: JSX.Element }) {
 	return <p class="eyebrow">{props.children}</p>;
 }
 
+/** Keeps contextual qualifications attached to the value they describe. */
+export function Caveat(props: {
+	label: string;
+	warning?: boolean;
+	children?: JSX.Element;
+}) {
+	return (
+		<details class={props.warning ? "data-caveat warning" : "data-caveat"}>
+			<summary title={props.label} aria-label={props.label}>
+				*
+			</summary>
+			<div>{props.children}</div>
+		</details>
+	);
+}
+
 export function Metric(props: {
 	label: string;
 	value: string;
