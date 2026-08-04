@@ -73,6 +73,18 @@ test("valuation comparison rows share aligned grid columns", () => {
 	);
 });
 
+test("valuation cards share the button radius and remain visually separate", () => {
+	assert.match(
+		css,
+		/\.valuation-card\s*\{[^}]*border-radius:\s*var\(--radius\);[^}]*overflow:\s*hidden;/s,
+	);
+	assert.match(css, /\.market-board\s*\{[^}]*gap:\s*var\(--size-2\);/s);
+	assert.match(
+		css,
+		/\.company-valuation\s*\{[^}]*border-radius:\s*var\(--radius\);[^}]*overflow:\s*hidden;/s,
+	);
+});
+
 test("normalization context stays with the probability audit table", () => {
 	assert.match(ui, /<tfoot>[\s\S]*?<th>Probability total<\/th>/);
 	assert.match(ui, /<details class="audit-disclosure">/);
