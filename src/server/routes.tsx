@@ -242,6 +242,7 @@ async function LargestCompanyMarketCard(props: {
 			<CompanyMarketCard
 				config={preview.config}
 				load={preview.load}
+				daily
 				transition={false}
 			/>
 		</div>
@@ -1149,6 +1150,7 @@ async function CompanyValuationValue(props: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
 }) {
+	const previous = getPreviousValuation(props.config.id).catch(() => undefined);
 	const result = await props.load;
 	if (!result.value) {
 		return (
@@ -1170,11 +1172,14 @@ async function CompanyValuationValue(props: {
 		<>
 			<div>
 				<Eyebrow>Estimated current valuation</Eyebrow>
-				<strong
-					style={`view-transition-name:${valuationTransition(props.config)}`}
-				>
-					{formatMoney(estimate.value, true)}
-				</strong>
+				<div class="company-valuation-estimate">
+					<strong
+						style={`view-transition-name:${valuationTransition(props.config)}`}
+					>
+						{formatMoney(estimate.value, true)}
+					</strong>
+					<DailyChange current={estimate.value} previous={previous} />
+				</div>
 				<p>
 					{estimate.methods === 1
 						? `A market-derived estimate of what ${props.config.name} may be worth today. The full calculation and assumptions are shown below.`

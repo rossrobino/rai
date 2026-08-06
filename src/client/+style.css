@@ -871,13 +871,22 @@
 		color: var(--accent);
 	}
 
-	.company-valuation > div > strong {
+	.company-valuation-estimate > strong {
 		display: block;
 		font-family: var(--font-serif);
 		font-size: clamp(4rem, 8vw, 7rem);
 		font-weight: 400;
 		letter-spacing: -0.025em;
 		line-height: 1;
+	}
+
+	.company-valuation-estimate > .daily-change {
+		align-items: center;
+		display: flex;
+		font: 700 0.72rem/1 var(--font-mono);
+		gap: 0.4rem;
+		inline-size: fit-content;
+		margin-block-start: 0.85rem;
 	}
 
 	.company-valuation > div > p:not(.eyebrow) {

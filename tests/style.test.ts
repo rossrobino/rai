@@ -98,6 +98,14 @@ test("valuation cards share the button radius in a compact dashboard grid", () =
 		routes,
 		/<CompanyMarketCard config=\{config\} load=\{load\} daily \/>/,
 	);
+	assert.match(
+		routes,
+		/<CompanyMarketCard[\s\S]*?config=\{preview\.config\}[\s\S]*?load=\{preview\.load\}[\s\S]*?daily[\s\S]*?transition=\{false\}/,
+	);
+	assert.match(
+		routes,
+		/<div class="company-valuation-estimate">[\s\S]*?<DailyChange current=\{estimate\.value\} previous=\{previous\} \/>/,
+	);
 	assert.match(css, /\.daily-change\.positive\s*\{[^}]*var\(--positive\)/s);
 	assert.match(css, /\.daily-change\.negative\s*\{[^}]*var\(--error\)/s);
 });
