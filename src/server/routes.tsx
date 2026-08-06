@@ -19,9 +19,11 @@ import {
 	formatDate,
 	formatDateTime,
 	formatMoney,
+	formatPercentChange,
 	formatProbability,
 } from "@/server/model";
 import {
+	getPreviousValuation,
 	getValuationHistory,
 	recordValuations,
 	type ValuationObservation,
@@ -310,7 +312,9 @@ function DashboardPage() {
 					<p>
 						Each card starts with Rai’s estimate of what the company may be
 						worth today. When several methods apply, the range shows where their
-						estimates differ—not a confidence interval.
+						estimates differ—not a confidence interval. The 1D figure compares
+						the current estimate with the latest snapshot from an earlier US
+						Eastern calendar day.
 					</p>
 				</div>
 				<div
@@ -318,7 +322,7 @@ function DashboardPage() {
 					style={`view-transition-name:${dashboardTransition}`}
 				>
 					{markets.map(({ config, load }) => (
-						<CompanyMarketCard config={config} load={load} />
+						<CompanyMarketCard config={config} load={load} daily />
 					))}
 				</div>
 			</section>
@@ -864,10 +868,12 @@ function valuationTransition(config: Company) {
 function CompanyMarketCard({
 	config,
 	load,
+	daily = false,
 	transition = true,
 }: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
+	daily?: boolean;
 	transition?: boolean;
 }) {
 	const mode = sourceMode(config);
@@ -888,7 +894,12 @@ function CompanyMarketCard({
 				</span>
 				<span>{config.code}</span>
 			</div>
-			<CompanyMarketValue config={config} load={load} transition={transition} />
+			<CompanyMarketValue
+				config={config}
+				load={load}
+				daily={daily}
+				transition={transition}
+			/>
 		</company.Anchor>
 	);
 }
@@ -896,12 +907,17 @@ function CompanyMarketCard({
 async function CompanyMarketValue({
 	config,
 	load,
+	daily = false,
 	transition = true,
 }: {
 	config: Company;
 	load: ReturnType<typeof resolveBoard>;
+	daily?: boolean;
 	transition?: boolean;
 }) {
+	const previous = daily
+		? getPreviousValuation(config.id).catch(() => undefined)
+		: undefined;
 	const result = await load;
 	if (!result.value) {
 		return (
@@ -937,6 +953,9 @@ async function CompanyMarketValue({
 				>
 					{formatMoney(estimate.value, true)}
 				</strong>
+				{previous ? (
+					<DailyChange current={estimate.value} previous={previous} />
+				) : null}
 				{estimate.methods > 1 ? (
 					<div>
 						<span>Estimate range</span>
@@ -959,6 +978,40 @@ async function CompanyMarketValue({
 				<b aria-hidden="true">↗</b>
 			</div>
 		</div>
+	);
+}
+
+async function DailyChange(props: {
+	current: number;
+	previous: ReturnType<typeof getPreviousValuation>;
+}) {
+	const previous = await props.previous;
+	if (!previous || previous.value <= 0) {
+		return (
+			<small class="daily-change neutral" aria-label="Daily change unavailable">
+				<span>—</span>
+				<b>1D</b>
+			</small>
+		);
+	}
+
+	const change = props.current / previous.value - 1;
+	const state =
+		change >= 0.00005
+			? "positive"
+			: change <= -0.00005
+				? "negative"
+				: "neutral";
+	const label = `${formatPercentChange(change)} versus the previous Eastern Time day, based on the ${formatDateTime(previous.observedAt)} observation`;
+
+	return (
+		<small class={`daily-change ${state}`} aria-label={label} title={label}>
+			<i aria-hidden="true">
+				{state === "positive" ? "↑" : state === "negative" ? "↓" : "—"}
+			</i>
+			<span>{formatPercentChange(change)}</span>
+			<b>1D</b>
+		</small>
 	);
 }
 

@@ -514,6 +514,33 @@
 		margin-block-start: 0.55rem;
 	}
 
+	.valuation-card-estimate > .daily-change {
+		align-items: center;
+		display: flex;
+		font: 700 0.67rem/1 var(--font-mono);
+		gap: 0.35rem;
+		inline-size: fit-content;
+	}
+
+	.daily-change.positive {
+		color: color-mix(in oklch, var(--positive), var(--ink-foreground) 35%);
+	}
+
+	.daily-change.negative {
+		color: color-mix(in oklch, var(--error), var(--ink-foreground) 30%);
+	}
+
+	.daily-change i {
+		font-style: normal;
+	}
+
+	.daily-change b {
+		border-inline-start: 1px solid var(--ink-line);
+		color: var(--ink-subtle);
+		font: inherit;
+		padding-inline-start: 0.35rem;
+	}
+
 	.valuation-card-estimate > div {
 		align-items: center;
 		display: flex;

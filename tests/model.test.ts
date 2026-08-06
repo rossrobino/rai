@@ -6,6 +6,7 @@ import {
 	combineValuations,
 	formatDateTime,
 	formatMoney,
+	formatPercentChange,
 	type Assumptions,
 	type Outcome,
 	type ThresholdAssumptions,
@@ -213,6 +214,12 @@ test("formats headline values to two decimal places", () => {
 	assert.equal(formatMoney(1_350_000), "$1.35T");
 	assert.equal(formatMoney(1_420_000, true), "$1.42T");
 	assert.equal(formatMoney(75_000, true), "$75.00B");
+});
+
+test("formats signed daily changes to two decimal places", () => {
+	assert.equal(formatPercentChange(0.01425), "+1.43%");
+	assert.equal(formatPercentChange(-0.01425), "-1.43%");
+	assert.equal(formatPercentChange(-0.000001), "0.00%");
 });
 
 test("formats timestamps in US Eastern Time", () => {

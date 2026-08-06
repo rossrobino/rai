@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { getDatabase } from "@/server/db";
 import {
 	valuationInputs,
@@ -41,6 +41,13 @@ export type ValuationHistoryPoint = {
 	}[];
 };
 
+const easternDay = new Intl.DateTimeFormat("en-CA", {
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+	timeZone: "America/New_York",
+});
+
 function timestamp(value?: string) {
 	if (!value) return null;
 	const date = new Date(value);
@@ -54,7 +61,7 @@ export async function recordValuations(
 	db = getDatabase(),
 ) {
 	const runId = crypto.randomUUID();
-	const bucket = observedAt.toISOString().slice(0, 10);
+	const bucket = easternDay.format(observedAt);
 	const inserted = await db.transaction(async (tx) => {
 		const run = await tx
 			.insert(valuationRuns)
@@ -105,6 +112,35 @@ export async function recordValuations(
 	});
 
 	return { inserted, runId: inserted ? runId : undefined, bucket };
+}
+
+/** Returns the latest stored valuation from an earlier US Eastern calendar day. */
+export async function getPreviousValuation(
+	companyId: string,
+	before = new Date(),
+	db = getDatabase(),
+) {
+	const point = (
+		await db
+			.select({
+				observedAt: valuationRuns.observedAt,
+				value: valuationSnapshots.value,
+			})
+			.from(valuationSnapshots)
+			.innerJoin(valuationRuns, eq(valuationSnapshots.runId, valuationRuns.id))
+			.where(
+				and(
+					eq(valuationSnapshots.companyId, companyId),
+					lt(valuationRuns.bucket, easternDay.format(before)),
+				),
+			)
+			.orderBy(desc(valuationRuns.bucket))
+			.limit(1)
+	)[0];
+
+	return point
+		? { observedAt: point.observedAt.toISOString(), value: point.value }
+		: undefined;
 }
 
 export async function getValuationHistory(

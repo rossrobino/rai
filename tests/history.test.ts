@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import * as schema from "../src/server/db/schema";
 import {
+	getPreviousValuation,
 	getValuationHistory,
 	recordValuations,
 	type ValuationObservation,
@@ -56,6 +57,12 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 			new Date("2026-07-31T18:00:00.000Z"),
 			db,
 		);
+		const easternDuplicate = await recordValuations(
+			[observation],
+			0,
+			new Date("2026-08-01T02:00:00.000Z"),
+			db,
+		);
 		await recordValuations(
 			[{ ...observation, value: 175_000 }],
 			0,
@@ -65,6 +72,18 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 
 		assert.equal(first.inserted, true);
 		assert.equal(duplicate.inserted, false);
+		assert.equal(easternDuplicate.inserted, false);
+		assert.deepEqual(
+			await getPreviousValuation(
+				observation.companyId,
+				new Date("2026-08-01T18:00:00.000Z"),
+				db,
+			),
+			{
+				observedAt: "2026-07-31T12:00:00.000Z",
+				value: 150_000,
+			},
+		);
 		assert.deepEqual(
 			(await getValuationHistory(observation.companyId, 365, db)).map(
 				(point) => ({

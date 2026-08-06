@@ -492,6 +492,13 @@ export function formatProbability(value: number) {
 	return `${(value * 100).toFixed(1)}%`;
 }
 
+/** Formats a signed decimal change as a percentage with two decimal places. */
+export function formatPercentChange(value: number) {
+	if (!Number.isFinite(value)) return "—";
+	const normalized = Math.abs(value) < 0.00005 ? 0 : value;
+	return `${normalized > 0 ? "+" : ""}${(normalized * 100).toFixed(2)}%`;
+}
+
 export function formatDate(value: string) {
 	return new Intl.DateTimeFormat("en-US", {
 		month: "short",

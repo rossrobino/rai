@@ -94,6 +94,12 @@ test("valuation cards share the button radius in a compact dashboard grid", () =
 		css,
 		/\.company-valuation\s*\{[^}]*border-radius:\s*var\(--radius\);[^}]*overflow:\s*hidden;/s,
 	);
+	assert.match(
+		routes,
+		/<CompanyMarketCard config=\{config\} load=\{load\} daily \/>/,
+	);
+	assert.match(css, /\.daily-change\.positive\s*\{[^}]*var\(--positive\)/s);
+	assert.match(css, /\.daily-change\.negative\s*\{[^}]*var\(--error\)/s);
 });
 
 test("normalization context stays with the probability audit table", () => {
