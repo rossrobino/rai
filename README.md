@@ -114,6 +114,7 @@ metadata where numeric valuation data is returned.
 - `/api/cron/snapshot-valuations` — authenticated daily history writer
 - `/methodology` — method directory
 - `/methodology/:method` — build-time-rendered methodology document
+- `/roadmap` — public research, data-source, and product roadmap
 
 All internal links use OVR route anchors.
 

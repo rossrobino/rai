@@ -32,6 +32,7 @@ import {
 	fetchThresholdMarkets,
 } from "@/server/polymarket";
 import { getMethodProviders, getProvider } from "@/server/providers";
+import { roadmapItems, type RoadmapItem } from "@/server/roadmap";
 import {
 	AssumptionList,
 	AuditTable,
@@ -67,6 +68,7 @@ function Navigation() {
 			<nav aria-label="Primary navigation">
 				<dashboard.Anchor>Dashboard</dashboard.Anchor>
 				<methodologies.Anchor>Methodology</methodologies.Anchor>
+				<roadmap.Anchor>Roadmap</roadmap.Anchor>
 			</nav>
 		</>
 	);
@@ -84,6 +86,42 @@ function Page(props: {
 function plural(count: number, singular: string, multiple = `${singular}s`) {
 	return count === 1 ? singular : multiple;
 }
+
+const roadmapStages: Array<{
+	id: RoadmapItem["stage"];
+	label: string;
+	title: string;
+	description: string;
+}> = [
+	{
+		id: "foundation",
+		label: "01 · Measurement",
+		title: "Improve the evidence before increasing complexity.",
+		description:
+			"These projects test accuracy, preserve historical inputs, and create the basis for empirical method weights.",
+	},
+	{
+		id: "coverage",
+		label: "02 · Coverage",
+		title: "Add markets without weakening the data standard.",
+		description:
+			"Coverage includes more eligible companies, additional venues, and evidence that is genuinely independent of Polymarket.",
+	},
+	{
+		id: "instruments",
+		label: "03 · Instruments",
+		title: "Test whether a model can support a real instrument.",
+		description:
+			"This is long-term feasibility research. It is not a product announcement, offering, or launch schedule.",
+	},
+];
+
+const roadmapStatus = {
+	underway: "Underway",
+	candidate: "Candidate",
+	"permission-gated": "Permission-gated",
+	concept: "Concept",
+};
 
 function expose(headers: Headers) {
 	headers.set("Access-Control-Allow-Origin", "*");
@@ -2270,6 +2308,144 @@ function MethodologiesPage() {
 					</li>
 				</ol>
 			</section>
+		</main>
+	);
+}
+
+export const roadmap = Route.get("/roadmap", () => (
+	<Page
+		title="Public roadmap"
+		description="Rai’s public roadmap for valuation research, broader market coverage, method calibration, and the long-term Rai Stone instrument concept."
+	>
+		<RoadmapPage />
+	</Page>
+));
+
+function RoadmapPage() {
+	const underway = roadmapItems.filter(
+		(item) => item.status === "underway",
+	).length;
+	const gated = roadmapItems.filter(
+		(item) => item.status === "permission-gated",
+	).length;
+
+	return (
+		<main id="content">
+			<section class="roadmap-hero">
+				<div class="shell">
+					<Eyebrow>Public roadmap · reviewed August 6, 2026</Eyebrow>
+					<div class="roadmap-hero-grid">
+						<h1>Research directions and product hypotheses.</h1>
+						<div class="prose">
+							<p>
+								This page records work Rai may pursue. It is a research queue,
+								not a committed release schedule.
+							</p>
+							<p>
+								Items advance when their data, validation, permission, and legal
+								requirements are sufficiently clear.
+							</p>
+						</div>
+					</div>
+					<dl class="roadmap-stats">
+						<div>
+							<dt>Tracked workstreams</dt>
+							<dd>{roadmapItems.length}</dd>
+						</div>
+						<div>
+							<dt>Underway</dt>
+							<dd>{underway}</dd>
+						</div>
+						<div>
+							<dt>Permission-gated</dt>
+							<dd>{gated}</dd>
+						</div>
+					</dl>
+				</div>
+			</section>
+
+			<nav class="shell roadmap-index" aria-label="Roadmap sections">
+				{roadmapStages.map((stage) => (
+					<roadmap.Anchor hash={stage.id}>
+						<span>{stage.label}</span>
+						<strong>{stage.title}</strong>
+					</roadmap.Anchor>
+				))}
+			</nav>
+
+			<div class="shell roadmap-sections">
+				{roadmapStages.map((stage) => (
+					<section class="roadmap-stage" id={stage.id}>
+						<header class="prose">
+							<Eyebrow>{stage.label}</Eyebrow>
+							<h2>{stage.title}</h2>
+							<p>{stage.description}</p>
+						</header>
+						<div class="roadmap-items">
+							{roadmapItems
+								.filter((item) => item.stage === stage.id)
+								.map((item) => (
+									<article class="roadmap-item" id={item.id}>
+										<header>
+											<h3>{item.title}</h3>
+											<span class={`badge roadmap-status ${item.status}`}>
+												{roadmapStatus[item.status]}
+											</span>
+										</header>
+										<p>{item.summary}</p>
+										<ul>
+											{item.points.map((point) => (
+												<li>{point}</li>
+											))}
+										</ul>
+										{item.id === "rai-stone" ? (
+											<div class="stone-model">
+												<h4>Proposed value path</h4>
+												<ol>
+													<li>
+														<span>01</span>
+														<strong>Market ladder</strong>
+														<p>
+															Eligible contracts define priced company outcomes.
+														</p>
+													</li>
+													<li>
+														<span>02</span>
+														<strong>Position basket</strong>
+														<p>
+															Rules determine collateral and contract exposure.
+														</p>
+													</li>
+													<li>
+														<span>03</span>
+														<strong>Reference NAV</strong>
+														<p>
+															Market marks and Rai’s math produce an auditable
+															value.
+														</p>
+													</li>
+													<li>
+														<span>04</span>
+														<strong>Stone unit</strong>
+														<p>
+															A future legal instrument could track that NAV.
+														</p>
+													</li>
+												</ol>
+												<p class="roadmap-note">
+													No Rai Stone exists today. Public access cannot be
+													assumed and would depend on the instrument’s legal
+													classification, licensed distribution, and investor
+													eligibility.
+												</p>
+											</div>
+										) : null}
+									</article>
+								))}
+						</div>
+					</section>
+				))}
+			</div>
 		</main>
 	);
 }
