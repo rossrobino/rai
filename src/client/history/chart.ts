@@ -144,8 +144,8 @@ export function render(element: HTMLElement) {
 							null,
 					]),
 					blur: {
-						itemStyle: { color, opacity: 0.55 },
-						lineStyle: { color, opacity: 0.42 },
+						itemStyle: { color, opacity: 0.76 },
+						lineStyle: { color, opacity: 0.76 },
 					},
 					emphasis: {
 						focus: "none",
@@ -153,10 +153,10 @@ export function render(element: HTMLElement) {
 						itemStyle: { color, opacity: 1 },
 						lineStyle: { color, opacity: 1, width: 2.75 },
 					},
-					itemStyle: { color, opacity: 0.55 },
+					itemStyle: { color, opacity: 0.76 },
 					lineStyle: {
 						color,
-						opacity: 0.42,
+						opacity: 0.76,
 						type: style.type,
 						width: 2,
 					},

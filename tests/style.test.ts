@@ -15,6 +15,45 @@ const ui = await readFile(
 	"utf8",
 );
 
+type Color = [number, number, number];
+
+function colors(name: string): [Color, Color] {
+	const match = css.match(
+		new RegExp(
+			`--${name}:\\s*light-dark\\(\\s*oklch\\(\\s*([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)\\s*\\),\\s*oklch\\(\\s*([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)\\s*\\)\\s*\\);`,
+			"s",
+		),
+	);
+	assert.ok(match, `Missing explicit light and dark colors for --${name}`);
+
+	return [
+		[Number(match[1]), Number(match[2]), Number(match[3])],
+		[Number(match[4]), Number(match[5]), Number(match[6])],
+	];
+}
+
+function luminance([lightness, chroma, hue]: Color) {
+	const radians = (hue * Math.PI) / 180;
+	const a = chroma * Math.cos(radians);
+	const b = chroma * Math.sin(radians);
+	const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+	const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+	const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+	const [red, green, blue] = [
+		4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+		-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+		-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+	].map((value) => Math.max(0, Math.min(1, value)));
+
+	return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrast(first: Color, second: Color) {
+	const lighter = Math.max(luminance(first), luminance(second));
+	const darker = Math.min(luminance(first), luminance(second));
+	return (lighter + 0.05) / (darker + 0.05);
+}
+
 test("the project theme extends UICO and supports both color schemes", () => {
 	assert.ok(
 		css.indexOf('@import "uico/style.css"') <
@@ -50,6 +89,57 @@ test("the project theme extends UICO and supports both color schemes", () => {
 		/--accent:\s*light-dark\(oklch\(0\.52 0\.12 240\), oklch\(0\.71 0\.1 238\)\);/,
 	);
 	assert.doesNotMatch(ui, /#f2ede4|#171512/);
+});
+
+test("semantic text colors meet WCAG AA contrast in both themes", () => {
+	const ink = colors("ink");
+	for (const name of [
+		"ink-foreground",
+		"ink-muted",
+		"ink-subtle",
+		"ink-accent",
+		"ink-positive",
+		"ink-warning",
+		"ink-error",
+	]) {
+		const foreground = colors(name);
+		for (const scheme of [0, 1] as const) {
+			assert.ok(
+				contrast(foreground[scheme], ink[scheme]) >= 4.5,
+				`--${name} must reach 4.5:1 against --ink in ${scheme === 0 ? "light" : "dark"} mode`,
+			);
+		}
+	}
+
+	const accent = colors("accent");
+	for (const name of ["accent-foreground", "accent-muted"]) {
+		const foreground = colors(name);
+		for (const scheme of [0, 1] as const) {
+			assert.ok(
+				contrast(foreground[scheme], accent[scheme]) >= 4.5,
+				`--${name} must reach 4.5:1 against --accent in ${scheme === 0 ? "light" : "dark"} mode`,
+			);
+		}
+	}
+
+	const hover = colors("accent-hover");
+	const foreground = colors("accent-foreground");
+	for (const scheme of [0, 1] as const) {
+		assert.ok(
+			contrast(foreground[scheme], hover[scheme]) >= 4.5,
+			`Accent button hover text must reach 4.5:1 in ${scheme === 0 ? "light" : "dark"} mode`,
+		);
+	}
+
+	assert.match(
+		css,
+		/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--focus-ring\)/s,
+	);
+	assert.match(
+		css,
+		/\.tape-inner span\s*\{[^}]*color:\s*var\(--accent-muted\)/s,
+	);
+	assert.doesNotMatch(css, /\.tape-inner span\s*\{[^}]*opacity:/s);
 });
 
 test("numeric text uses tabular figures throughout the document", () => {
@@ -106,8 +196,8 @@ test("valuation cards share the button radius in a compact dashboard grid", () =
 		routes,
 		/<div class="company-valuation-estimate">[\s\S]*?<DailyChange current=\{estimate\.value\} previous=\{previous\} \/>/,
 	);
-	assert.match(css, /\.daily-change\.positive\s*\{[^}]*var\(--positive\)/s);
-	assert.match(css, /\.daily-change\.negative\s*\{[^}]*var\(--error\)/s);
+	assert.match(css, /\.daily-change\.positive\s*\{[^}]*var\(--ink-positive\)/s);
+	assert.match(css, /\.daily-change\.negative\s*\{[^}]*var\(--ink-error\)/s);
 });
 
 test("normalization context stays with the probability audit table", () => {

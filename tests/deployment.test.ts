@@ -52,7 +52,7 @@ test("valuation chart hover does not hide unrelated series", () => {
 	assert.match(chart, /focus: "none"/);
 	assert.match(
 		chart,
-		/blur:\s*\{[\s\S]*?lineStyle: \{ color, opacity: 0\.42 \}/,
+		/blur:\s*\{[\s\S]*?lineStyle: \{ color, opacity: 0\.76 \}/,
 	);
 });
 
@@ -65,8 +65,7 @@ test("valuation chart inputs use distinct color, line, and point encodings", () 
 	}
 	assert.match(chart, /type: "dashed"/);
 	assert.match(chart, /type: "dotted"/);
-	assert.match(chart, /opacity: 0\.42/);
-	assert.match(chart, /opacity: 0\.55/);
+	assert.equal(chart.match(/opacity: 0\.76/g)?.length, 4);
 	assert.match(chart, /lineStyle: \{ color, opacity: 1, width: 2\.75 \}/);
 	assert.match(chart, /width: 2,/);
 	assert.match(chart, /width: 3\.5/);

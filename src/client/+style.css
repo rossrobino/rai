@@ -31,7 +31,7 @@
 		--heading-foreground: light-dark(var(--base-950), var(--base-100));
 		--copy: light-dark(var(--base-700), var(--base-400));
 		--muted-background: var(--surface-muted);
-		--muted-foreground: light-dark(var(--base-600), var(--base-500));
+		--muted-foreground: light-dark(var(--base-600), oklch(0.66 0.015 72));
 		--muted: var(--muted-foreground);
 		--line: light-dark(var(--base-300), var(--base-700));
 		--border: 1px solid var(--line);
@@ -48,9 +48,11 @@
 			oklch(0.97 0.008 75),
 			oklch(0.18 0.035 243)
 		);
-		--accent-hover: light-dark(oklch(0.58 0.115 238), oklch(0.76 0.085 236));
+		--accent-hover: light-dark(oklch(0.49 0.115 238), oklch(0.76 0.085 236));
 		--accent-dark: light-dark(oklch(0.43 0.105 242), oklch(0.81 0.07 236));
-		--accent-muted: light-dark(oklch(0.9 0.025 235), oklch(0.33 0.055 244));
+		--accent-muted: light-dark(oklch(0.95 0.015 235), oklch(0.33 0.055 244));
+		--focus-ring: var(--accent-dark);
+		--link-hover: var(--accent-dark);
 		--accent-line: color-mix(
 			in oklch,
 			var(--accent-foreground) 30%,
@@ -65,7 +67,11 @@
 		--ink: light-dark(oklch(0.17 0.01 72), oklch(0.205 0.012 72));
 		--ink-foreground: light-dark(oklch(0.96 0.006 72), oklch(0.93 0.008 72));
 		--ink-muted: light-dark(oklch(0.72 0.009 72), oklch(0.69 0.01 72));
-		--ink-subtle: light-dark(oklch(0.54 0.01 72), oklch(0.56 0.011 72));
+		--ink-subtle: light-dark(oklch(0.62 0.01 72), oklch(0.62 0.011 72));
+		--ink-accent: light-dark(oklch(0.64 0.09 238), oklch(0.71 0.1 238));
+		--ink-positive: light-dark(oklch(0.64 0.1 155), oklch(0.75 0.12 155));
+		--ink-warning: light-dark(oklch(0.65 0.1 78), oklch(0.79 0.12 78));
+		--ink-error: light-dark(oklch(0.64 0.12 28), oklch(0.76 0.13 28));
 		--ink-line: light-dark(
 			oklch(0.98 0.004 72 / 18%),
 			oklch(0.98 0.004 72 / 14%)
@@ -149,6 +155,11 @@
 		color: inherit;
 	}
 
+	:focus-visible {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 0.2rem;
+	}
+
 	button,
 	.button {
 		align-items: center;
@@ -202,7 +213,7 @@
 	select:focus,
 	textarea:focus {
 		border-color: var(--accent);
-		outline: 2px solid color-mix(in oklch, var(--accent), transparent 75%);
+		outline-color: var(--focus-ring);
 		outline-offset: 1px;
 	}
 
@@ -268,11 +279,11 @@
 
 	@media (hover: hover) and (pointer: fine) {
 		a:hover {
-			color: var(--accent-dark);
+			color: var(--link-hover);
 		}
 
 		summary:hover {
-			color: var(--accent-dark);
+			color: var(--link-hover);
 		}
 
 		button:hover,
@@ -291,6 +302,17 @@
 }
 
 @layer components {
+	:where(
+		.company-valuation,
+		.dark-section,
+		.stone-model,
+		.methodology-hero,
+		.method-hero
+	) {
+		--focus-ring: var(--ink-accent);
+		--link-hover: var(--ink-accent);
+	}
+
 	.skip-link {
 		background: var(--primary-background);
 		color: var(--primary-foreground);
@@ -404,6 +426,7 @@
 	}
 
 	.valuation-card {
+		--link-hover: var(--ink-foreground);
 		background: var(--ink);
 		border-radius: var(--radius);
 		box-shadow: 0 1.5rem 4rem var(--shadow);
@@ -523,11 +546,11 @@
 	}
 
 	.daily-change.positive {
-		color: color-mix(in oklch, var(--positive), var(--ink-foreground) 35%);
+		color: var(--ink-positive);
 	}
 
 	.daily-change.negative {
-		color: color-mix(in oklch, var(--error), var(--ink-foreground) 30%);
+		color: var(--ink-error);
 	}
 
 	.daily-change i {
@@ -622,7 +645,7 @@
 	}
 
 	.tape-inner span {
-		opacity: 0.7;
+		color: var(--accent-muted);
 	}
 
 	.dashboard-hero {
@@ -868,7 +891,7 @@
 	}
 
 	.company-valuation .eyebrow {
-		color: var(--accent);
+		color: var(--ink-accent);
 	}
 
 	.company-valuation-estimate > strong {
@@ -1013,7 +1036,7 @@
 
 	.valuation-comparison li.total > div:first-child strong,
 	.valuation-comparison li.total > b {
-		color: var(--accent);
+		color: var(--ink-accent);
 	}
 
 	.valuation-history {
@@ -1352,6 +1375,10 @@
 		color: var(--ink-muted);
 	}
 
+	.company-valuation .warning-disclosure summary {
+		color: var(--ink-warning);
+	}
+
 	.dark-section {
 		background: var(--ink);
 		color: var(--ink-foreground);
@@ -1359,7 +1386,7 @@
 	}
 
 	.dark-section .eyebrow {
-		color: var(--accent);
+		color: var(--ink-accent);
 	}
 
 	.dark-section h2,
@@ -1979,7 +2006,7 @@
 	}
 
 	.stone-model li > span {
-		color: var(--accent);
+		color: var(--ink-accent);
 		font: 700 0.65rem/1 var(--font-mono);
 	}
 
@@ -2010,7 +2037,7 @@
 	}
 
 	.methodology-hero .eyebrow {
-		color: var(--accent);
+		color: var(--ink-accent);
 	}
 
 	.methodology-hero-grid {
@@ -2254,7 +2281,7 @@
 	}
 
 	.method-hero .eyebrow {
-		color: var(--accent);
+		color: var(--ink-accent);
 	}
 
 	.method-kicker {
@@ -2304,7 +2331,7 @@
 	}
 
 	.method-breadcrumb span {
-		color: var(--accent);
+		color: var(--ink-accent);
 		margin-inline: 0.4rem;
 	}
 
