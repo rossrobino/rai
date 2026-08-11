@@ -1,4 +1,4 @@
-import { LineChart } from "echarts/charts";
+import { EffectScatterChart, LineChart } from "echarts/charts";
 import {
 	GridComponent,
 	LegendComponent,
@@ -8,6 +8,7 @@ import { init, use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 
 use([
+	EffectScatterChart,
 	LineChart,
 	GridComponent,
 	LegendComponent,
@@ -110,10 +111,10 @@ export function render(element: HTMLElement) {
 		),
 	);
 	const styles = [
-		{ token: "--series-1", type: "dashed", symbol: "diamond" },
-		{ token: "--series-2", type: "dotted", symbol: "rect" },
-		{ token: "--series-3", type: [10, 4, 2, 4], symbol: "triangle" },
-		{ token: "--series-4", type: [4, 3], symbol: "roundRect" },
+		{ token: "--series-1", type: "dashed" },
+		{ token: "--series-2", type: "dotted" },
+		{ token: "--series-3", type: [10, 4, 2, 4] },
+		{ token: "--series-4", type: [4, 3] },
 	];
 	const accent = resolve(element, "--accent");
 	const peer = resolve(element, "--series-1");
@@ -135,9 +136,14 @@ export function render(element: HTMLElement) {
 	function update() {
 		const visible = select(points, range);
 		const performance = view === "performance";
+		const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+		const rai = performance
+			? normalize(visible.map((point) => [point.observedAt, point.value]))
+			: visible.map((point) => [point.observedAt, point.value] as const);
+		const current = rai.findLast(([, value]) => value != null);
 		chart.setOption(
 			{
-				animation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+				animation: !reduced,
 				animationDuration: 260,
 				animationEasing: "cubicInOut",
 				stateAnimation: { duration: 120, easing: "cubicOut" },
@@ -185,90 +191,97 @@ export function render(element: HTMLElement) {
 					},
 					splitLine: { lineStyle: { color: line } },
 				},
-				series: performance
-					? [
-							{
-								name: "Rai estimate",
-								type: "line",
-								data: normalize(
-									visible.map((point) => [point.observedAt, point.value]),
-								),
-								emphasis: { disabled: true },
-								lineStyle: { color: accent, width: 3.5 },
-								itemStyle: { color: accent },
-								symbol: "circle",
-								symbolSize: 8,
-								showSymbol: visible.length < 32,
-								z: 3,
-							},
-							{
-								name: `Rai Index (ex ${company})`,
-								type: "line",
-								connectNulls: false,
-								data: normalize(
-									visible.map((point) => [point.observedAt, point.benchmark]),
-								),
-								emphasis: { disabled: true },
-								lineStyle: { color: peer, type: "dashed", width: 2.25 },
-								itemStyle: { color: peer },
-								symbol: "diamond",
-								symbolSize: 7,
-								showSymbol: visible.length < 32,
-								z: 2,
-							},
-						]
-					: [
-							{
-								name: "Rai current valuation",
-								type: "line",
-								data: visible.map((point) => [point.observedAt, point.value]),
-								emphasis: { disabled: true },
-								lineStyle: { width: 3.5 },
-								symbol: "circle",
-								symbolSize: 8,
-								showSymbol: visible.length < 32,
-								z: 3,
-							},
-							...[...methods].map(([methodId, label], i) => {
-								const style = styles[i % styles.length];
-								if (!style) {
-									throw new Error("Missing valuation chart series style");
-								}
-								const color = resolve(element, style.token);
-
-								return {
-									name: label,
+				series: [
+					...(performance
+						? [
+								{
+									name: "Rai estimate",
+									type: "line",
+									data: rai,
+									emphasis: { disabled: true },
+									lineStyle: { color: accent, width: 3.5 },
+									showSymbol: false,
+									z: 3,
+								},
+								{
+									name: `Rai Index (ex ${company})`,
 									type: "line",
 									connectNulls: false,
-									data: visible.map((point) => [
-										point.observedAt,
-										point.inputs.find((input) => input.methodId === methodId)
-											?.value ?? null,
-									]),
-									blur: {
+									data: normalize(
+										visible.map((point) => [point.observedAt, point.benchmark]),
+									),
+									emphasis: { disabled: true },
+									lineStyle: { color: peer, type: "dashed", width: 2.25 },
+									showSymbol: false,
+									z: 2,
+								},
+							]
+						: [
+								{
+									name: "Rai current valuation",
+									type: "line",
+									data: rai,
+									emphasis: { disabled: true },
+									lineStyle: { width: 3.5 },
+									showSymbol: false,
+									z: 3,
+								},
+								...[...methods].map(([methodId, label], i) => {
+									const style = styles[i % styles.length];
+									if (!style) {
+										throw new Error("Missing valuation chart series style");
+									}
+									const color = resolve(element, style.token);
+
+									return {
+										name: label,
+										type: "line",
+										connectNulls: false,
+										data: visible.map((point) => [
+											point.observedAt,
+											point.inputs.find((input) => input.methodId === methodId)
+												?.value ?? null,
+										]),
+										blur: {
+											itemStyle: { color, opacity: 0.76 },
+											lineStyle: { color, opacity: 0.76 },
+										},
+										emphasis: {
+											focus: "none",
+											scale: false,
+											itemStyle: { color, opacity: 1 },
+											lineStyle: { color, opacity: 1, width: 2.75 },
+										},
 										itemStyle: { color, opacity: 0.76 },
-										lineStyle: { color, opacity: 0.76 },
-									},
-									emphasis: {
-										focus: "none",
-										scale: false,
-										itemStyle: { color, opacity: 1 },
-										lineStyle: { color, opacity: 1, width: 2.75 },
-									},
-									itemStyle: { color, opacity: 0.76 },
-									lineStyle: {
-										color,
-										opacity: 0.76,
-										type: style.type,
-										width: 2,
-									},
-									symbol: style.symbol,
-									symbolSize: 6,
-									showSymbol: visible.length < 32,
-									z: 1,
-								};
-							}),
-						],
+										lineStyle: {
+											color,
+											opacity: 0.76,
+											type: style.type,
+											width: 2,
+										},
+										showSymbol: false,
+										z: 1,
+									};
+								}),
+							]),
+					{
+						type: "effectScatter",
+						clip: false,
+						data: current ? [current] : [],
+						itemStyle: { color: accent },
+						rippleEffect: {
+							brushType: "stroke",
+							number: 1,
+							period: 6,
+							scale: 1.8,
+						},
+						showEffectOn: reduced ? "emphasis" : "render",
+						silent: true,
+						symbolSize: 8,
+						tooltip: { show: false },
+						z: 4,
+					},
+				],
 			},
 			true,
 		);

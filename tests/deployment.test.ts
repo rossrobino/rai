@@ -95,12 +95,23 @@ test("valuation history switches between dollar and normalized peer views", () =
 	assert.match(chart, /hideOverlap: true/);
 });
 
-test("valuation chart inputs use distinct color, line, and point encodings", () => {
+test("valuation chart uses clean lines and a restrained current-value pulse", () => {
+	assert.match(chart, /import \{ EffectScatterChart, LineChart \}/);
+	assert.equal(chart.match(/showSymbol: false/g)?.length, 4);
+	assert.match(chart, /type: "effectScatter"/);
+	assert.match(chart, /clip: false/);
+	assert.match(
+		chart,
+		/rippleEffect:\s*\{[^}]*brushType: "stroke",[^}]*number: 1,[^}]*period: 6,[^}]*scale: 1\.8,/s,
+	);
+	assert.match(chart, /showEffectOn: reduced \? "emphasis" : "render"/);
+	assert.match(chart, /silent: true/);
+	assert.match(chart, /tooltip: \{ show: false \}/);
+});
+
+test("valuation chart inputs use distinct color and line encodings", () => {
 	for (const token of ["series-1", "series-2", "series-3", "series-4"]) {
 		assert.match(chart, new RegExp(`--${token}`));
-	}
-	for (const symbol of ["diamond", "rect", "triangle", "roundRect"]) {
-		assert.match(chart, new RegExp(`symbol: "${symbol}"`));
 	}
 	assert.match(chart, /type: "dashed"/);
 	assert.match(chart, /type: "dotted"/);
