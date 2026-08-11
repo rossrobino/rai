@@ -96,6 +96,14 @@ test("valuation chart hover does not hide unrelated series", () => {
 	);
 });
 
+test("mobile chart tooltips flip around the cursor and stay inside the chart", () => {
+	assert.match(chart, /confine: true/);
+	assert.match(chart, /position: compact \? placeTooltip : undefined/);
+	assert.match(chart, /point\[0\] < viewWidth \/ 2/);
+	assert.match(chart, /max-width: min\(15rem, 72%\)/);
+	assert.match(chart, /white-space: normal/);
+});
+
 test("valuation history switches between dollar and normalized peer views", () => {
 	assert.match(routes, /data-history-view="valuation"/);
 	assert.match(routes, /data-history-view="performance"/);

@@ -1,4 +1,5 @@
 import { EffectScatterChart, LineChart } from "echarts/charts";
+import type { TooltipComponentPositionCallback } from "echarts";
 import {
 	GridComponent,
 	LegendComponent,
@@ -97,6 +98,25 @@ function toggle(buttons: NodeListOf<HTMLButtonElement>, value: string) {
 	}
 }
 
+const placeTooltip: TooltipComponentPositionCallback = (point, _, __, ___, size) => {
+	const inset = 8;
+	const gap = 12;
+	const [width, height] = size.contentSize;
+	const [viewWidth, viewHeight] = size.viewSize;
+	const x =
+		point[0] < viewWidth / 2
+			? point[0] + gap
+			: point[0] - Math.min(width, viewWidth - inset * 2) - gap;
+
+	return [
+		Math.min(Math.max(inset, x), Math.max(inset, viewWidth - width - inset)),
+		Math.min(
+			Math.max(inset, point[1] - height / 2),
+			Math.max(inset, viewHeight - height - inset),
+		),
+	];
+};
+
 export function render(element: HTMLElement) {
 	const panel = element.closest<HTMLElement>(".history-chart-panel");
 	const source = panel?.querySelector<HTMLScriptElement>(
@@ -166,6 +186,11 @@ export function render(element: HTMLElement) {
 					textStyle: { color: muted },
 				},
 				tooltip: {
+					confine: true,
+					extraCssText: compact
+						? "max-width: min(15rem, 72%); white-space: normal;"
+						: undefined,
+					position: compact ? placeTooltip : undefined,
 					trigger: "axis",
 					valueFormatter: (value: unknown) =>
 						performance ? indexed(Number(value)) : format(Number(value)),
