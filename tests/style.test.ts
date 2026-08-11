@@ -149,6 +149,18 @@ test("numeric text uses tabular figures throughout the document", () => {
 	);
 });
 
+test("every page gets shared Open Graph and Twitter card metadata", () => {
+	assert.match(ui, /import og from "@\/assets\/rai-og\.png\?no-inline";/);
+	assert.match(ui, /new URL\(og, "https:\/\/rai\.robino\.dev"\)\.href/);
+	assert.match(ui, /property="og:title" content=\{title\}/);
+	assert.match(ui, /property="og:description" content=\{description\}/);
+	assert.match(ui, /property="og:image" content=\{image\}/);
+	assert.match(ui, /property="og:image:width" content="1200"/);
+	assert.match(ui, /property="og:image:height" content="630"/);
+	assert.match(ui, /name="twitter:card" content="summary_large_image"/);
+	assert.match(ui, /name="twitter:image" content=\{image\}/);
+});
+
 test("source market cards keep long quotes and metadata within their grid", () => {
 	assert.match(
 		css,

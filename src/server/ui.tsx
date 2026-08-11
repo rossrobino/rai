@@ -2,6 +2,7 @@ import * as analyticsScript from "client:script/analytics";
 import * as style from "client:style";
 import { Render, type JSX } from "ovr";
 import mark from "@/assets/rai-mark.svg?no-inline";
+import og from "@/assets/rai-og.png?no-inline";
 import {
 	formatDate,
 	formatMoney,
@@ -19,6 +20,12 @@ export function Layout(props: {
 	head?: JSX.Element;
 	children?: JSX.Element;
 }) {
+	const title = `${props.title} · Rai`;
+	const description =
+		props.description ??
+		"Rai estimates private-company valuations from prediction-market data.";
+	const image = new URL(og, "https://rai.robino.dev").href;
+
 	return (
 		<html lang="en">
 			<head>
@@ -36,12 +43,27 @@ export function Layout(props: {
 					content="#171613"
 					media="(prefers-color-scheme: dark)"
 				/>
+				<meta name="description" content={description} />
+				<meta property="og:type" content="website" />
+				<meta property="og:site_name" content="Rai" />
+				<meta property="og:locale" content="en_US" />
+				<meta property="og:title" content={title} />
+				<meta property="og:description" content={description} />
+				<meta property="og:image" content={image} />
+				<meta property="og:image:type" content="image/png" />
+				<meta property="og:image:width" content="1200" />
+				<meta property="og:image:height" content="630" />
 				<meta
-					name="description"
-					content={
-						props.description ??
-						"Rai estimates private-company valuations from prediction-market data."
-					}
+					property="og:image:alt"
+					content="Rai — private-company valuations from prediction-market data"
+				/>
+				<meta name="twitter:card" content="summary_large_image" />
+				<meta name="twitter:title" content={title} />
+				<meta name="twitter:description" content={description} />
+				<meta name="twitter:image" content={image} />
+				<meta
+					name="twitter:image:alt"
+					content="Rai — private-company valuations from prediction-market data"
 				/>
 				<link rel="icon" href={mark} type="image/svg+xml" />
 				{Render.html(style.tags)}
@@ -69,7 +91,7 @@ export function Layout(props: {
 						}),
 					)}
 				</script>
-				<title>{props.title} · Rai</title>
+				<title>{title}</title>
 			</head>
 			<body>
 				<a class="skip-link" href="#content">
