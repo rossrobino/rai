@@ -1,3 +1,4 @@
+import * as analyticsScript from "client:script/analytics";
 import * as style from "client:style";
 import { Render, type JSX } from "ovr";
 import mark from "@/assets/rai-mark.svg?no-inline";
@@ -44,11 +45,12 @@ export function Layout(props: {
 				/>
 				<link rel="icon" href={mark} type="image/svg+xml" />
 				{Render.html(style.tags)}
+				{Render.html(analyticsScript.tags)}
 				{props.head}
 				<script type="speculationrules">
 					{Render.html(
 						JSON.stringify({
-							prerender: [
+							prefetch: [
 								{
 									where: {
 										and: [

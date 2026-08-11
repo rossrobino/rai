@@ -22,6 +22,17 @@ const database = await readFile(
 	new URL("../src/server/db/index.ts", import.meta.url),
 	"utf8",
 );
+const layout = await readFile(
+	new URL("../src/server/ui.tsx", import.meta.url),
+	"utf8",
+);
+const analytics = await readFile(
+	new URL("../src/client/analytics/+script.ts", import.meta.url),
+	"utf8",
+);
+const pkg = JSON.parse(
+	await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
 
 test("the Vercel output registers one daily valuation snapshot", () => {
 	assert.match(config, /expiration:\s*600/);
@@ -29,6 +40,22 @@ test("the Vercel output registers one daily valuation snapshot", () => {
 		config,
 		/\{ path: "\/api\/cron\/snapshot-valuations", schedule: "0 12 \* \* \*" \}/,
 	);
+});
+
+test("Vercel Analytics is bundled for full-page navigation", () => {
+	assert.equal(typeof pkg.dependencies["@vercel/analytics"], "string");
+	assert.match(analytics, /import \{ inject \} from "@vercel\/analytics"/);
+	assert.match(analytics, /inject\(\)/);
+	assert.match(
+		layout,
+		/import \* as analyticsScript from "client:script\/analytics"/,
+	);
+	assert.match(layout, /Render\.html\(analyticsScript\.tags\)/);
+});
+
+test("same-origin speculation prefetches without executing analytics", () => {
+	assert.match(layout, /prefetch:\s*\[/);
+	assert.doesNotMatch(layout, /prerender:\s*\[/);
 });
 
 test("the snapshot endpoint requires Vercel's bearer secret", () => {
