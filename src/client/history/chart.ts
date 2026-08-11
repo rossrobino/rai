@@ -18,6 +18,7 @@ use([
 type Point = {
 	observedAt: string;
 	value: number;
+	benchmark: number | null;
 	inputs: {
 		methodId: string;
 		label: string;
@@ -25,6 +26,10 @@ type Point = {
 	}[];
 };
 
+type View = "valuation" | "performance";
+type Range = "week" | "max";
+
+const day = 86_400_000;
 const money = new Intl.NumberFormat("en-US", {
 	style: "currency",
 	currency: "USD",
@@ -42,6 +47,29 @@ function format(value: number) {
 	return money.format(value * 1_000_000);
 }
 
+function indexed(value: number) {
+	const change = value - 100;
+	return `${value.toFixed(2)} · ${change > 0 ? "+" : ""}${change.toFixed(2)}%`;
+}
+
+function normalize(values: [string, number | null][]) {
+	const start = values.find(
+		([, value]) => value != null && Number.isFinite(value) && value > 0,
+	)?.[1];
+	return values.map(([observedAt, value]): readonly [string, number | null] => [
+		observedAt,
+		start == null || value == null ? null : (value / start) * 100,
+	]);
+}
+
+function select(points: Point[], range: Range) {
+	if (range === "max") return points;
+	const latest = new Date(points.at(-1)?.observedAt ?? 0).getTime();
+	return points.filter(
+		(point) => new Date(point.observedAt).getTime() >= latest - 7 * day,
+	);
+}
+
 function resolve(element: HTMLElement, token: string) {
 	const color = element.style.color;
 	element.style.color = `var(${token})`;
@@ -50,13 +78,27 @@ function resolve(element: HTMLElement, token: string) {
 	return value;
 }
 
+function toggle(buttons: NodeListOf<HTMLButtonElement>, value: string) {
+	for (const button of buttons) {
+		button.setAttribute(
+			"aria-pressed",
+			String(
+				button.dataset.historyView === value ||
+					button.dataset.historyRange === value,
+			),
+		);
+	}
+}
+
 export function render(element: HTMLElement) {
-	const source = element.parentElement?.querySelector<HTMLScriptElement>(
+	const panel = element.closest<HTMLElement>(".history-chart-panel");
+	const source = panel?.querySelector<HTMLScriptElement>(
 		'script[type="application/json"]',
 	);
-	if (!source?.textContent) return;
+	if (!source?.textContent || !panel) return;
 
 	const points: Point[] = JSON.parse(source.textContent);
+	const company = element.dataset.historyCompany ?? "Company";
 	const methods = new Map(
 		points.flatMap((point) =>
 			point.inputs.map((input) => [input.methodId, input.label] as const),
@@ -68,105 +110,186 @@ export function render(element: HTMLElement) {
 		{ token: "--series-3", type: [10, 4, 2, 4], symbol: "triangle" },
 		{ token: "--series-4", type: [4, 3], symbol: "roundRect" },
 	];
+	const accent = resolve(element, "--accent");
+	const peer = resolve(element, "--series-1");
+	const muted = resolve(element, "--muted");
+	const line = resolve(element, "--line");
+	const views = panel.querySelectorAll<HTMLButtonElement>(
+		"[data-history-view]",
+	);
+	const ranges = panel.querySelectorAll<HTMLButtonElement>(
+		"[data-history-range]",
+	);
+	let view: View = "valuation";
+	let range: Range = "max";
+
 	element.replaceChildren();
 	const chart = init(element, undefined, { renderer: "canvas" });
-	chart.setOption({
-		animation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
-		animationDuration: 260,
-		animationEasing: "cubicInOut",
-		stateAnimation: { duration: 120, easing: "cubicOut" },
-		color: [
-			resolve(element, "--accent"),
-			...styles.map(({ token }) => resolve(element, token)),
-		],
-		grid: {
-			containLabel: true,
-			left: 8,
-			right: 12,
-			top: methods.size > 0 ? 64 : 24,
-			bottom: 8,
-		},
-		legend: {
-			show: methods.size > 0,
-			top: 8,
-			textStyle: { color: resolve(element, "--muted") },
-		},
-		tooltip: {
-			trigger: "axis",
-			valueFormatter: (value: unknown) => format(Number(value)),
-		},
-		xAxis: {
-			type: "time",
-			minInterval: 86_400_000,
-			axisLabel: {
-				color: resolve(element, "--muted"),
-				formatter: (value: number) => date.format(new Date(value)),
-			},
-			axisLine: {
-				lineStyle: { color: resolve(element, "--line") },
-			},
-		},
-		yAxis: {
-			type: "value",
-			scale: true,
-			axisLabel: {
-				color: resolve(element, "--muted"),
-				formatter: (value: number) => format(value),
-			},
-			splitLine: {
-				lineStyle: { color: resolve(element, "--line") },
-			},
-		},
-		series: [
-			{
-				name: "Rai current valuation",
-				type: "line",
-				data: points.map((point) => [point.observedAt, point.value]),
-				emphasis: { disabled: true },
-				lineStyle: { width: 3.5 },
-				symbol: "circle",
-				symbolSize: 8,
-				showSymbol: points.length < 32,
-				z: 3,
-			},
-			...[...methods].map(([methodId, label], i) => {
-				const style = styles[i % styles.length];
-				if (!style) throw new Error("Missing valuation chart series style");
-				const color = resolve(element, style.token);
 
-				return {
-					name: label,
-					type: "line",
-					connectNulls: false,
-					data: points.map((point) => [
-						point.observedAt,
-						point.inputs.find((input) => input.methodId === methodId)?.value ??
-							null,
-					]),
-					blur: {
-						itemStyle: { color, opacity: 0.76 },
-						lineStyle: { color, opacity: 0.76 },
+	function update() {
+		const visible = select(points, range);
+		const performance = view === "performance";
+		chart.setOption(
+			{
+				animation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+				animationDuration: 260,
+				animationEasing: "cubicInOut",
+				stateAnimation: { duration: 120, easing: "cubicOut" },
+				color: performance
+					? [accent, peer]
+					: [accent, ...styles.map(({ token }) => resolve(element, token))],
+				grid: {
+					containLabel: true,
+					left: 8,
+					right: 12,
+					top: performance || methods.size > 0 ? 64 : 24,
+					bottom: 8,
+				},
+				legend: {
+					show: performance || methods.size > 0,
+					top: 8,
+					textStyle: { color: muted },
+				},
+				tooltip: {
+					trigger: "axis",
+					valueFormatter: (value: unknown) =>
+						performance ? indexed(Number(value)) : format(Number(value)),
+				},
+				xAxis: {
+					type: "time",
+					minInterval: day,
+					axisLabel: {
+						color: muted,
+						formatter: (value: number) => date.format(new Date(value)),
 					},
-					emphasis: {
-						focus: "none",
-						scale: false,
-						itemStyle: { color, opacity: 1 },
-						lineStyle: { color, opacity: 1, width: 2.75 },
+					axisLine: { lineStyle: { color: line } },
+				},
+				yAxis: {
+					type: "value",
+					scale: true,
+					name: performance ? "Indexed to 100" : undefined,
+					nameTextStyle: { color: muted },
+					axisLabel: {
+						color: muted,
+						formatter: (value: number) =>
+							performance ? value.toFixed(0) : format(value),
 					},
-					itemStyle: { color, opacity: 0.76 },
-					lineStyle: {
-						color,
-						opacity: 0.76,
-						type: style.type,
-						width: 2,
-					},
-					symbol: style.symbol,
-					symbolSize: 6,
-					showSymbol: points.length < 32,
-					z: 1,
-				};
-			}),
-		],
-	});
+					splitLine: { lineStyle: { color: line } },
+				},
+				series: performance
+					? [
+							{
+								name: "Rai estimate",
+								type: "line",
+								data: normalize(
+									visible.map((point) => [point.observedAt, point.value]),
+								),
+								emphasis: { disabled: true },
+								lineStyle: { color: accent, width: 3.5 },
+								itemStyle: { color: accent },
+								symbol: "circle",
+								symbolSize: 8,
+								showSymbol: visible.length < 32,
+								z: 3,
+							},
+							{
+								name: `Rai Index (ex ${company})`,
+								type: "line",
+								connectNulls: false,
+								data: normalize(
+									visible.map((point) => [point.observedAt, point.benchmark]),
+								),
+								emphasis: { focus: "none", scale: false },
+								lineStyle: { color: peer, type: "dashed", width: 2.25 },
+								itemStyle: { color: peer },
+								symbol: "diamond",
+								symbolSize: 7,
+								showSymbol: visible.length < 32,
+								z: 2,
+							},
+						]
+					: [
+							{
+								name: "Rai current valuation",
+								type: "line",
+								data: visible.map((point) => [point.observedAt, point.value]),
+								emphasis: { disabled: true },
+								lineStyle: { width: 3.5 },
+								symbol: "circle",
+								symbolSize: 8,
+								showSymbol: visible.length < 32,
+								z: 3,
+							},
+							...[...methods].map(([methodId, label], i) => {
+								const style = styles[i % styles.length];
+								if (!style) {
+									throw new Error("Missing valuation chart series style");
+								}
+								const color = resolve(element, style.token);
+
+								return {
+									name: label,
+									type: "line",
+									connectNulls: false,
+									data: visible.map((point) => [
+										point.observedAt,
+										point.inputs.find((input) => input.methodId === methodId)
+											?.value ?? null,
+									]),
+									blur: {
+										itemStyle: { color, opacity: 0.76 },
+										lineStyle: { color, opacity: 0.76 },
+									},
+									emphasis: {
+										focus: "none",
+										scale: false,
+										itemStyle: { color, opacity: 1 },
+										lineStyle: { color, opacity: 1, width: 2.75 },
+									},
+									itemStyle: { color, opacity: 0.76 },
+									lineStyle: {
+										color,
+										opacity: 0.76,
+										type: style.type,
+										width: 2,
+									},
+									symbol: style.symbol,
+									symbolSize: 6,
+									showSymbol: visible.length < 32,
+									z: 1,
+								};
+							}),
+						],
+			},
+			true,
+		);
+		element.setAttribute(
+			"aria-label",
+			performance
+				? `${company} Rai estimate compared with the leave-one-out Rai Index, normalized to 100 across ${visible.length} daily observations.`
+				: `${company} valuation and method inputs across ${visible.length} daily observations.`,
+		);
+	}
+
+	for (const button of views) {
+		button.addEventListener("click", () => {
+			const next = button.dataset.historyView;
+			if (next !== "valuation" && next !== "performance") return;
+			view = next;
+			toggle(views, view);
+			update();
+		});
+	}
+	for (const button of ranges) {
+		button.addEventListener("click", () => {
+			const next = button.dataset.historyRange;
+			if (next !== "week" && next !== "max") return;
+			range = next;
+			toggle(ranges, range);
+			update();
+		});
+	}
+
+	update();
 	new ResizeObserver(() => chart.resize()).observe(element);
 }

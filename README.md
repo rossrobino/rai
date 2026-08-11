@@ -141,8 +141,11 @@ pages query up to 365 observations in an async server component, then load the
 ECharts module only when chart data is present. After seven daily changes, the
 history view reports annualized realized volatility using up to 30 daily
 logarithmic changes. This measures movement in Rai’s estimate, not the risk of a
-traded security. Each company-method page also links to its current public API
-response.
+traded security. The chart can also rebase the company estimate and a
+leave-one-out, equal-weight Rai peer index to 100 over the latest week or all
+stored history. The comparison begins with Rai’s own observations and does not
+backfill earlier data. Each company-method page also links to its current public
+API response.
 
 The database schema is in `src/server/db/schema.ts`; generated SQL migrations
 are committed under `drizzle/`. Run `npm run db:generate` after schema changes

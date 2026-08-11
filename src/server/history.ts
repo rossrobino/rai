@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, ne } from "drizzle-orm";
 import { getDatabase } from "@/server/db";
 import {
 	valuationInputs,
@@ -29,6 +29,8 @@ export type ValuationHistoryPoint = {
 	id: string;
 	observedAt: string;
 	value: number;
+	benchmark: number | null;
+	peerCount: number;
 	low: number;
 	high: number;
 	methodCount: number;
@@ -40,6 +42,51 @@ export type ValuationHistoryPoint = {
 		weight: number;
 	}[];
 };
+
+type PeerRun = {
+	observedAt: string;
+	values: { companyId: string; value: number }[];
+};
+
+/** Compounds equal-weight daily returns for a leave-one-out company index. */
+export function peerIndex(runs: PeerRun[]) {
+	let level = 100;
+	return runs.map((run, i) => {
+		const current = new Map(
+			run.values
+				.filter(({ value }) => Number.isFinite(value) && value > 0)
+				.map(({ companyId, value }) => [companyId, value]),
+		);
+		if (i === 0) {
+			return {
+				observedAt: run.observedAt,
+				value: current.size > 0 ? level : null,
+				companies: current.size,
+			};
+		}
+
+		const previous = new Map(
+			(runs[i - 1]?.values ?? [])
+				.filter(({ value }) => Number.isFinite(value) && value > 0)
+				.map(({ companyId, value }) => [companyId, value]),
+		);
+		const changes = [...current].flatMap(([companyId, value]) => {
+			const prior = previous.get(companyId);
+			return prior == null ? [] : [value / prior - 1];
+		});
+		if (changes.length === 0) {
+			return { observedAt: run.observedAt, value: null, companies: 0 };
+		}
+
+		level *=
+			1 + changes.reduce((sum, value) => sum + value, 0) / changes.length;
+		return {
+			observedAt: run.observedAt,
+			value: level,
+			companies: changes.length,
+		};
+	});
+}
 
 /** Calculates annualized realized volatility from up to 30 daily valuation changes. */
 export function realizedVolatility(
@@ -179,6 +226,7 @@ export async function getValuationHistory(
 	const snapshots = await db
 		.select({
 			id: valuationSnapshots.id,
+			runId: valuationSnapshots.runId,
 			observedAt: valuationRuns.observedAt,
 			value: valuationSnapshots.value,
 			low: valuationSnapshots.low,
@@ -193,27 +241,60 @@ export async function getValuationHistory(
 		.limit(limit);
 	if (snapshots.length === 0) return [];
 
-	const inputs = await db
-		.select({
-			snapshotId: valuationInputs.snapshotId,
-			methodId: valuationInputs.methodId,
-			label: valuationInputs.label,
-			value: valuationInputs.value,
-			weight: valuationInputs.weight,
-		})
-		.from(valuationInputs)
-		.where(
-			inArray(
-				valuationInputs.snapshotId,
-				snapshots.map(({ id }) => id),
+	const [inputs, peers] = await Promise.all([
+		db
+			.select({
+				snapshotId: valuationInputs.snapshotId,
+				methodId: valuationInputs.methodId,
+				label: valuationInputs.label,
+				value: valuationInputs.value,
+				weight: valuationInputs.weight,
+			})
+			.from(valuationInputs)
+			.where(
+				inArray(
+					valuationInputs.snapshotId,
+					snapshots.map(({ id }) => id),
+				),
+			)
+			.orderBy(asc(valuationInputs.methodId)),
+		db
+			.select({
+				runId: valuationSnapshots.runId,
+				companyId: valuationSnapshots.companyId,
+				value: valuationSnapshots.value,
+			})
+			.from(valuationSnapshots)
+			.where(
+				and(
+					inArray(
+						valuationSnapshots.runId,
+						snapshots.map(({ runId }) => runId),
+					),
+					ne(valuationSnapshots.companyId, companyId),
+				),
 			),
-		)
-		.orderBy(asc(valuationInputs.methodId));
+	]);
 	const grouped = Map.groupBy(inputs, (input) => input.snapshotId);
+	const companies = Map.groupBy(peers, (peer) => peer.runId);
+	const ordered = snapshots.reverse();
+	const benchmark = peerIndex(
+		ordered.map((snapshot) => ({
+			observedAt: snapshot.observedAt.toISOString(),
+			values: companies.get(snapshot.runId) ?? [],
+		})),
+	);
 
-	return snapshots.reverse().map((snapshot): ValuationHistoryPoint => ({
-		...snapshot,
+	return ordered.map((snapshot, i): ValuationHistoryPoint => ({
+		id: snapshot.id,
 		observedAt: snapshot.observedAt.toISOString(),
+		value: snapshot.value,
+		benchmark: benchmark[i]?.value ?? null,
+		peerCount: benchmark[i]?.companies ?? 0,
+		low: snapshot.low,
+		high: snapshot.high,
+		methodCount: snapshot.methodCount,
+		unavailableMethodCount: snapshot.unavailableMethodCount,
 		inputs: grouped.get(snapshot.id) ?? [],
 	}));
 }

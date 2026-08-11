@@ -11,6 +11,7 @@ import * as schema from "../src/server/db/schema";
 import {
 	getPreviousValuation,
 	getValuationHistory,
+	peerIndex,
 	realizedVolatility,
 	recordValuations,
 	type ValuationObservation,
@@ -36,6 +37,47 @@ const observation: ValuationObservation = {
 		},
 	],
 };
+
+const peer: ValuationObservation = {
+	...observation,
+	companyId: "company:peer",
+	companySlug: "peer",
+	value: 150_000,
+};
+
+test("the peer index equal-weights returns from consecutive companies", () => {
+	const result = peerIndex([
+		{
+			observedAt: "2026-07-31T12:00:00.000Z",
+			values: [
+				{ companyId: "a", value: 100 },
+				{ companyId: "b", value: 200 },
+			],
+		},
+		{
+			observedAt: "2026-08-01T12:00:00.000Z",
+			values: [
+				{ companyId: "a", value: 110 },
+				{ companyId: "b", value: 180 },
+			],
+		},
+		{
+			observedAt: "2026-08-02T12:00:00.000Z",
+			values: [
+				{ companyId: "a", value: 121 },
+				{ companyId: "c", value: 300 },
+			],
+		},
+	]);
+
+	assert.equal(result[0]?.value, 100);
+	assert.ok(Math.abs((result[1]?.value ?? 0) - 100) < 0.0000000001);
+	assert.ok(Math.abs((result[2]?.value ?? 0) - 110) < 0.0000000001);
+	assert.deepEqual(
+		result.map(({ companies }) => companies),
+		[2, 2, 1],
+	);
+});
 
 test("realized volatility uses daily log changes and a minimum sample", () => {
 	const changes = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
@@ -66,25 +108,28 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 
 	try {
 		const first = await recordValuations(
-			[observation],
+			[observation, peer],
 			0,
 			new Date("2026-07-31T12:00:00.000Z"),
 			db,
 		);
 		const duplicate = await recordValuations(
-			[observation],
+			[observation, peer],
 			0,
 			new Date("2026-07-31T18:00:00.000Z"),
 			db,
 		);
 		const easternDuplicate = await recordValuations(
-			[observation],
+			[observation, peer],
 			0,
 			new Date("2026-08-01T02:00:00.000Z"),
 			db,
 		);
 		await recordValuations(
-			[{ ...observation, value: 175_000 }],
+			[
+				{ ...observation, value: 175_000 },
+				{ ...peer, value: 165_000 },
+			],
 			0,
 			new Date("2026-08-01T12:00:00.000Z"),
 			db,
@@ -109,6 +154,11 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 				(point) => ({
 					observedAt: point.observedAt,
 					value: point.value,
+					benchmark:
+						point.benchmark == null
+							? null
+							: Math.round(point.benchmark * 100) / 100,
+					peers: point.peerCount,
 					input: point.inputs[0]?.value,
 				}),
 			),
@@ -116,11 +166,15 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 				{
 					observedAt: "2026-07-31T12:00:00.000Z",
 					value: 150_000,
+					benchmark: 100,
+					peers: 1,
 					input: 150_000,
 				},
 				{
 					observedAt: "2026-08-01T12:00:00.000Z",
 					value: 175_000,
+					benchmark: 110,
+					peers: 1,
 					input: 150_000,
 				},
 			],

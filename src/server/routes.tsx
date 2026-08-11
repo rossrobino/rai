@@ -1075,12 +1075,12 @@ async function CompanyValuationHistory(props: { config: Company }) {
 				<div>
 					<Eyebrow>Valuation history</Eyebrow>
 					<h2 id="valuation-history-title">
-						Estimate and method inputs over time
+						Valuation and relative performance over time
 					</h2>
 				</div>
 				<p>
-					One scheduled observation per day. Lines show the Rai estimate and
-					each available method estimate.
+					Switch between dollar estimates and performance normalized against the
+					other companies tracked by Rai.
 				</p>
 			</header>
 			<dl class="history-stats">
@@ -1107,11 +1107,59 @@ async function CompanyValuationHistory(props: { config: Company }) {
 				</div>
 			</dl>
 			<div class="history-chart-panel">
+				<div class="history-chart-toolbar">
+					<div
+						class="history-chart-toggle"
+						role="group"
+						aria-label="Chart view"
+					>
+						<button
+							type="button"
+							aria-controls={`valuation-history-chart-${props.config.slug}`}
+							aria-pressed="true"
+							data-history-view="valuation"
+						>
+							Valuation
+						</button>
+						<button
+							type="button"
+							aria-controls={`valuation-history-chart-${props.config.slug}`}
+							aria-pressed="false"
+							data-history-view="performance"
+						>
+							Performance
+						</button>
+					</div>
+					<div
+						class="history-chart-toggle"
+						role="group"
+						aria-label="Chart timeframe"
+					>
+						<button
+							type="button"
+							aria-controls={`valuation-history-chart-${props.config.slug}`}
+							aria-pressed="false"
+							data-history-range="week"
+						>
+							1W
+						</button>
+						<button
+							type="button"
+							aria-controls={`valuation-history-chart-${props.config.slug}`}
+							aria-pressed="true"
+							data-history-range="max"
+						>
+							Max
+						</button>
+					</div>
+				</div>
 				<div
 					class="history-chart"
+					id={`valuation-history-chart-${props.config.slug}`}
 					data-valuation-history
+					data-history-company={props.config.name}
 					role="img"
-					aria-label={`${props.config.name} valuation history across ${history.length} daily ${plural(history.length, "observation")}, from ${formatDateTime(first.observedAt)} through ${formatDateTime(latest.observedAt)}.`}
+					aria-label={`${props.config.name} valuation history across ${history.length} daily ${plural(history.length, "observation")}, with valuation and normalized performance views, from ${formatDateTime(first.observedAt)} through ${formatDateTime(latest.observedAt)}.`}
 				>
 					<p>Loading interactive valuation chart…</p>
 				</div>
@@ -1126,7 +1174,13 @@ async function CompanyValuationHistory(props: { config: Company }) {
 				</p>
 			) : null}
 			<details class="history-method">
-				<summary>How realized volatility is calculated</summary>
+				<summary>How history calculations work</summary>
+				<p>
+					The performance view sets both lines to 100 at the first observation
+					in the selected timeframe. The Rai Index compounds the equal-weighted
+					daily returns of every other company available in consecutive
+					snapshots; it excludes the company being viewed.
+				</p>
 				<p>
 					Rai calculates the annualized sample standard deviation of daily
 					logarithmic changes over the latest 30 days. It waits for at least

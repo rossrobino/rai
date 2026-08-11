@@ -75,12 +75,22 @@ test("ECharts is loaded only when historical data is rendered", () => {
 
 test("valuation chart hover does not hide unrelated series", () => {
 	assert.match(chart, /trigger: "axis"/);
-	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 1);
+	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 2);
 	assert.match(chart, /focus: "none"/);
 	assert.match(
 		chart,
 		/blur:\s*\{[\s\S]*?lineStyle: \{ color, opacity: 0\.76 \}/,
 	);
+});
+
+test("valuation history switches between dollar and normalized peer views", () => {
+	assert.match(routes, /data-history-view="valuation"/);
+	assert.match(routes, /data-history-view="performance"/);
+	assert.match(routes, /data-history-range="week"/);
+	assert.match(routes, /data-history-range="max"/);
+	assert.match(chart, /Rai Index \(ex \$\{company\}\)/);
+	assert.match(chart, /normalize\(/);
+	assert.match(chart, /latest - 7 \* day/);
 });
 
 test("valuation chart inputs use distinct color, line, and point encodings", () => {
