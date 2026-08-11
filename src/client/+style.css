@@ -1099,6 +1099,7 @@
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
 		display: inline-flex;
+		gap: 0.2rem;
 		padding: 0.2rem;
 	}
 
@@ -2932,13 +2933,34 @@
 	}
 
 	@media (max-width: 620px) {
+		.history-chart-panel {
+			display: grid;
+			grid-template-areas:
+				"view"
+				"chart"
+				"range";
+		}
+
 		.history-chart-toolbar {
-			align-items: stretch;
-			flex-direction: column;
+			display: contents;
 		}
 
 		.history-chart-toggle {
 			inline-size: 100%;
+		}
+
+		.history-chart-view {
+			grid-area: view;
+			margin-block-end: 1rem;
+		}
+
+		.history-chart {
+			grid-area: chart;
+		}
+
+		.history-chart-range {
+			grid-area: range;
+			margin-block-start: 1rem;
 		}
 
 		.history-chart-toggle button {

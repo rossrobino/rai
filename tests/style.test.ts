@@ -186,6 +186,23 @@ test("valuation comparison rows share aligned grid columns", () => {
 	);
 });
 
+test("history chart controls stay distinct and responsive", () => {
+	assert.match(routes, /class="history-chart-toggle history-chart-view"/);
+	assert.match(routes, /class="history-chart-toggle history-chart-range"/);
+	assert.match(
+		css,
+		/\.history-chart-toggle\s*\{[^}]*display:\s*inline-flex;[^}]*gap:\s*0\.2rem;/s,
+	);
+	assert.match(
+		css,
+		/@media \(max-width: 620px\)[\s\S]*?\.history-chart-toolbar\s*\{\s*display:\s*contents;/,
+	);
+	assert.match(
+		css,
+		/\.history-chart-range\s*\{[^}]*grid-area:\s*range;[^}]*margin-block-start:\s*1rem;/s,
+	);
+});
+
 test("valuation cards share the button radius in a compact dashboard grid", () => {
 	assert.match(
 		css,

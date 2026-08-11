@@ -42,6 +42,11 @@ const date = new Intl.DateTimeFormat("en-US", {
 	day: "numeric",
 	year: "2-digit",
 });
+const shortDate = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	month: "short",
+	day: "numeric",
+});
 
 function format(value: number) {
 	return money.format(value * 1_000_000);
@@ -122,6 +127,7 @@ export function render(element: HTMLElement) {
 	);
 	let view: View = "valuation";
 	let range: Range = "max";
+	let compact = element.clientWidth < 620;
 
 	element.replaceChildren();
 	const chart = init(element, undefined, { renderer: "canvas" });
@@ -158,9 +164,12 @@ export function render(element: HTMLElement) {
 				xAxis: {
 					type: "time",
 					minInterval: day,
+					splitNumber: compact ? 3 : 6,
 					axisLabel: {
 						color: muted,
-						formatter: (value: number) => date.format(new Date(value)),
+						formatter: (value: number) =>
+							(compact ? shortDate : date).format(new Date(value)),
+						hideOverlap: true,
 					},
 					axisLine: { lineStyle: { color: line } },
 				},
@@ -199,7 +208,7 @@ export function render(element: HTMLElement) {
 								data: normalize(
 									visible.map((point) => [point.observedAt, point.benchmark]),
 								),
-								emphasis: { focus: "none", scale: false },
+								emphasis: { disabled: true },
 								lineStyle: { color: peer, type: "dashed", width: 2.25 },
 								itemStyle: { color: peer },
 								symbol: "diamond",
@@ -291,5 +300,11 @@ export function render(element: HTMLElement) {
 	}
 
 	update();
-	new ResizeObserver(() => chart.resize()).observe(element);
+	new ResizeObserver(() => {
+		chart.resize();
+		const next = element.clientWidth < 620;
+		if (next === compact) return;
+		compact = next;
+		update();
+	}).observe(element);
 }

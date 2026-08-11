@@ -1109,7 +1109,7 @@ async function CompanyValuationHistory(props: { config: Company }) {
 			<div class="history-chart-panel">
 				<div class="history-chart-toolbar">
 					<div
-						class="history-chart-toggle"
+						class="history-chart-toggle history-chart-view"
 						role="group"
 						aria-label="Chart view"
 					>
@@ -1131,7 +1131,7 @@ async function CompanyValuationHistory(props: { config: Company }) {
 						</button>
 					</div>
 					<div
-						class="history-chart-toggle"
+						class="history-chart-toggle history-chart-range"
 						role="group"
 						aria-label="Chart timeframe"
 					>
