@@ -18,6 +18,10 @@ const chart = await readFile(
 	new URL("../src/client/history/chart.ts", import.meta.url),
 	"utf8",
 );
+const alpha = await readFile(
+	new URL("../src/server/alpha-vantage.ts", import.meta.url),
+	"utf8",
+);
 const database = await readFile(
 	new URL("../src/server/db/index.ts", import.meta.url),
 	"utf8",
@@ -40,6 +44,15 @@ test("the Vercel output registers one daily valuation snapshot", () => {
 		config,
 		/\{ path: "\/api\/cron\/snapshot-valuations", schedule: "0 12 \* \* \*" \}/,
 	);
+});
+
+test("the daily snapshot job also stores QQQ history", () => {
+	assert.match(routes, /fetchQqq\(\)\.catch\(\(\) => null\)/);
+	assert.match(routes, /recordMarketPrices\(prices\)/);
+	assert.match(routes, /symbol: "QQQ"/);
+	assert.match(alpha, /function", "TIME_SERIES_DAILY"/);
+	assert.match(alpha, /symbol", qqqSymbol/);
+	assert.match(alpha, /outputsize", "compact"/);
 });
 
 test("Vercel Analytics is bundled for full-page navigation", () => {
@@ -75,7 +88,7 @@ test("ECharts is loaded only when historical data is rendered", () => {
 
 test("valuation chart hover does not hide unrelated series", () => {
 	assert.match(chart, /trigger: "axis"/);
-	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 3);
+	assert.equal(chart.match(/emphasis: \{ disabled: true \}/g)?.length, 4);
 	assert.match(chart, /focus: "none"/);
 	assert.match(
 		chart,
@@ -89,6 +102,9 @@ test("valuation history switches between dollar and normalized peer views", () =
 	assert.match(routes, /data-history-range="week"/);
 	assert.match(routes, /data-history-range="max"/);
 	assert.match(chart, /Rai Index \(ex \$\{company\}\)/);
+	assert.match(chart, /name: "QQQ"/);
+	assert.match(chart, /point\.qqq/);
+	assert.match(chart, /const qqq = visible\.some/);
 	assert.match(chart, /normalize\(/);
 	assert.match(chart, /latest - 7 \* day/);
 	assert.match(chart, /splitNumber: compact \? 3 : 6/);
@@ -97,7 +113,7 @@ test("valuation history switches between dollar and normalized peer views", () =
 
 test("valuation chart uses clean lines and a restrained current-value pulse", () => {
 	assert.match(chart, /import \{ EffectScatterChart, LineChart \}/);
-	assert.equal(chart.match(/showSymbol: false/g)?.length, 4);
+	assert.equal(chart.match(/showSymbol: false/g)?.length, 5);
 	assert.match(chart, /type: "effectScatter"/);
 	assert.match(chart, /clip: false/);
 	assert.match(

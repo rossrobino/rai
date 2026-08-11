@@ -12,6 +12,7 @@ import type {
 	PredictionIpoMethod,
 	PredictionThresholdMethod,
 } from "@/server/company-schema";
+import { fetchQqq } from "@/server/alpha-vantage";
 import {
 	calculate,
 	calculateThresholds,
@@ -26,6 +27,7 @@ import {
 	getPreviousValuation,
 	getValuationHistory,
 	realizedVolatility,
+	recordMarketPrices,
 	recordValuations,
 	type ValuationObservation,
 } from "@/server/history";
@@ -809,7 +811,10 @@ export const snapshotValuations = Route.get(
 		}
 
 		const observedAt = new Date();
-		const { observations, failures } = await collectValuations();
+		const [{ observations, failures }, prices] = await Promise.all([
+			collectValuations(),
+			fetchQqq().catch(() => null),
+		]);
 		if (observations.length === 0) {
 			return c.json(
 				{ error: "No company valuations were available for this run." },
@@ -823,11 +828,26 @@ export const snapshotValuations = Route.get(
 				failures.length,
 				observedAt,
 			);
+			let benchmark = {
+				symbol: "QQQ",
+				fetched: prices != null,
+				stored: false,
+				inserted: 0,
+			};
+			if (prices) {
+				try {
+					const result = await recordMarketPrices(prices);
+					benchmark = { ...benchmark, stored: true, inserted: result.inserted };
+				} catch {
+					// A benchmark failure must not discard the primary valuation snapshot.
+				}
+			}
 			return c.json({
 				success: true,
 				...recorded,
 				companies: observations.length,
 				failures,
+				benchmark,
 			});
 		} catch {
 			return c.json(
@@ -1079,8 +1099,8 @@ async function CompanyValuationHistory(props: { config: Company }) {
 					</h2>
 				</div>
 				<p>
-					Switch between dollar estimates and performance normalized against the
-					other companies tracked by Rai.
+					Switch between dollar estimates and performance normalized against
+					Rai’s peer index and QQQ.
 				</p>
 			</header>
 			<dl class="history-stats">
@@ -1159,7 +1179,7 @@ async function CompanyValuationHistory(props: { config: Company }) {
 					data-valuation-history
 					data-history-company={props.config.name}
 					role="img"
-					aria-label={`${props.config.name} valuation history across ${history.length} daily ${plural(history.length, "observation")}, with valuation and normalized performance views, from ${formatDateTime(first.observedAt)} through ${formatDateTime(latest.observedAt)}.`}
+					aria-label={`${props.config.name} valuation history across ${history.length} daily ${plural(history.length, "observation")}, with valuation and normalized Rai Index and QQQ performance views, from ${formatDateTime(first.observedAt)} through ${formatDateTime(latest.observedAt)}.`}
 				>
 					<p>Loading interactive valuation chart…</p>
 				</div>
@@ -1176,10 +1196,23 @@ async function CompanyValuationHistory(props: { config: Company }) {
 			<details class="history-method">
 				<summary>How history calculations work</summary>
 				<p>
-					The performance view sets both lines to 100 at the first observation
-					in the selected timeframe. The Rai Index compounds the equal-weighted
-					daily returns of every other company available in consecutive
-					snapshots; it excludes the company being viewed.
+					The performance view sets each available series to 100 at its first
+					observation in the selected timeframe. The Rai Index compounds the
+					equal-weighted daily returns of every other company available in
+					consecutive snapshots; it excludes the company being viewed.
+				</p>
+				<p>
+					QQQ is the Invesco QQQ ETF used as a public-market technology
+					benchmark. Rai stores the raw daily close from{" "}
+					<a
+						href="https://www.alphavantage.co/documentation/#daily"
+						target="_blank"
+						rel="noreferrer"
+					>
+						Alpha Vantage
+					</a>
+					; non-trading days carry the latest prior close. This is a
+					price-return comparison, not a dividend-adjusted total return.
 				</p>
 				<p>
 					Rai calculates the annualized sample standard deviation of daily

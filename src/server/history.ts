@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, inArray, lt, ne } from "drizzle-orm";
+import type { MarketPrice } from "@/server/alpha-vantage";
 import { getDatabase } from "@/server/db";
 import {
+	marketPrices,
 	valuationInputs,
 	valuationRuns,
 	valuationSnapshots,
@@ -30,6 +32,7 @@ export type ValuationHistoryPoint = {
 	observedAt: string;
 	value: number;
 	benchmark: number | null;
+	qqq: number | null;
 	peerCount: number;
 	low: number;
 	high: number;
@@ -47,6 +50,25 @@ type PeerRun = {
 	observedAt: string;
 	values: { companyId: string; value: number }[];
 };
+
+/** Aligns market closes to calendar observations using the latest prior close. */
+export function alignPrices(
+	buckets: string[],
+	prices: Array<{ date: string; close: number }>,
+) {
+	const ordered = prices.toSorted((a, b) => a.date.localeCompare(b.date));
+	let i = 0;
+	let close: number | null = null;
+	return buckets.map((bucket) => {
+		let price = ordered[i];
+		while (price && price.date <= bucket) {
+			close = price.close;
+			i += 1;
+			price = ordered[i];
+		}
+		return close;
+	});
+}
 
 /** Compounds equal-weight daily returns for a leave-one-out company index. */
 export function peerIndex(runs: PeerRun[]) {
@@ -189,6 +211,32 @@ export async function recordValuations(
 	return { inserted, runId: inserted ? runId : undefined, bucket };
 }
 
+/** Stores previously unseen market closes returned by a benchmark provider. */
+export async function recordMarketPrices(
+	prices: MarketPrice[],
+	db = getDatabase(),
+) {
+	if (prices.length === 0) return { inserted: 0 };
+	const inserted = await db
+		.insert(marketPrices)
+		.values(
+			prices.map((price) => ({
+				id: `${price.symbol}:${price.date}`,
+				symbol: price.symbol,
+				date: price.date,
+				close: price.close,
+				provider: price.provider,
+				fetchedAt: new Date(price.fetchedAt),
+			})),
+		)
+		.onConflictDoNothing({
+			target: [marketPrices.symbol, marketPrices.date],
+		})
+		.returning({ id: marketPrices.id });
+
+	return { inserted: inserted.length };
+}
+
 /** Returns the latest stored valuation from an earlier US Eastern calendar day. */
 export async function getPreviousValuation(
 	companyId: string,
@@ -227,6 +275,7 @@ export async function getValuationHistory(
 		.select({
 			id: valuationSnapshots.id,
 			runId: valuationSnapshots.runId,
+			bucket: valuationRuns.bucket,
 			observedAt: valuationRuns.observedAt,
 			value: valuationSnapshots.value,
 			low: valuationSnapshots.low,
@@ -241,7 +290,7 @@ export async function getValuationHistory(
 		.limit(limit);
 	if (snapshots.length === 0) return [];
 
-	const [inputs, peers] = await Promise.all([
+	const [inputs, peers, prices] = await Promise.all([
 		db
 			.select({
 				snapshotId: valuationInputs.snapshotId,
@@ -274,6 +323,11 @@ export async function getValuationHistory(
 					ne(valuationSnapshots.companyId, companyId),
 				),
 			),
+		db
+			.select({ date: marketPrices.date, close: marketPrices.close })
+			.from(marketPrices)
+			.where(eq(marketPrices.symbol, "QQQ"))
+			.orderBy(asc(marketPrices.date)),
 	]);
 	const grouped = Map.groupBy(inputs, (input) => input.snapshotId);
 	const companies = Map.groupBy(peers, (peer) => peer.runId);
@@ -284,12 +338,17 @@ export async function getValuationHistory(
 			values: companies.get(snapshot.runId) ?? [],
 		})),
 	);
+	const qqq = alignPrices(
+		ordered.map((snapshot) => snapshot.bucket),
+		prices,
+	);
 
 	return ordered.map((snapshot, i): ValuationHistoryPoint => ({
 		id: snapshot.id,
 		observedAt: snapshot.observedAt.toISOString(),
 		value: snapshot.value,
 		benchmark: benchmark[i]?.value ?? null,
+		qqq: qqq[i] ?? null,
 		peerCount: benchmark[i]?.companies ?? 0,
 		low: snapshot.low,
 		high: snapshot.high,

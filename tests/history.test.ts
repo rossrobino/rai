@@ -7,12 +7,15 @@ import test from "node:test";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
+import type { MarketPrice } from "../src/server/alpha-vantage";
 import * as schema from "../src/server/db/schema";
 import {
+	alignPrices,
 	getPreviousValuation,
 	getValuationHistory,
 	peerIndex,
 	realizedVolatility,
+	recordMarketPrices,
 	recordValuations,
 	type ValuationObservation,
 } from "../src/server/history";
@@ -44,6 +47,20 @@ const peer: ValuationObservation = {
 	companySlug: "peer",
 	value: 150_000,
 };
+
+test("market closes align to the latest prior trading day", () => {
+	assert.deepEqual(
+		alignPrices(
+			["2026-07-30", "2026-07-31", "2026-08-01", "2026-08-03"],
+			[
+				{ date: "2026-08-03", close: 420 },
+				{ date: "2026-07-30", close: 400 },
+				{ date: "2026-07-31", close: 410 },
+			],
+		),
+		[400, 410, 410, 420],
+	);
+});
 
 test("the peer index equal-weights returns from consecutive companies", () => {
 	const result = peerIndex([
@@ -107,6 +124,25 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 	});
 
 	try {
+		const prices: MarketPrice[] = [
+			{
+				symbol: "QQQ",
+				date: "2026-07-30",
+				close: 400,
+				provider: "alpha-vantage",
+				fetchedAt: "2026-07-31T12:00:00.000Z",
+			},
+			{
+				symbol: "QQQ",
+				date: "2026-07-31",
+				close: 410,
+				provider: "alpha-vantage",
+				fetchedAt: "2026-08-01T12:00:00.000Z",
+			},
+		];
+		assert.deepEqual(await recordMarketPrices(prices, db), { inserted: 2 });
+		assert.deepEqual(await recordMarketPrices(prices, db), { inserted: 0 });
+
 		const first = await recordValuations(
 			[observation, peer],
 			0,
@@ -159,6 +195,7 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 							? null
 							: Math.round(point.benchmark * 100) / 100,
 					peers: point.peerCount,
+					qqq: point.qqq,
 					input: point.inputs[0]?.value,
 				}),
 			),
@@ -168,6 +205,7 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 					value: 150_000,
 					benchmark: 100,
 					peers: 1,
+					qqq: 410,
 					input: 150_000,
 				},
 				{
@@ -175,6 +213,7 @@ test("daily valuation snapshots are stored once and returned chronologically", a
 					value: 175_000,
 					benchmark: 110,
 					peers: 1,
+					qqq: 410,
 					input: 150_000,
 				},
 			],

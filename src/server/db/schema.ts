@@ -69,3 +69,21 @@ export const valuationInputs = sqliteTable(
 		index("valuation_inputs_snapshot_idx").on(table.snapshotId),
 	],
 );
+
+export const marketPrices = sqliteTable(
+	"market_prices",
+	{
+		id: text().primaryKey(),
+		symbol: text().notNull(),
+		date: text().notNull(),
+		close: real().notNull(),
+		provider: text().notNull(),
+		fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
+	},
+	(table) => [
+		uniqueIndex("market_prices_symbol_date_unique").on(
+			table.symbol,
+			table.date,
+		),
+	],
+);

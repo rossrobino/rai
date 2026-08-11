@@ -20,6 +20,7 @@ type Point = {
 	observedAt: string;
 	value: number;
 	benchmark: number | null;
+	qqq: number | null;
 	inputs: {
 		methodId: string;
 		label: string;
@@ -118,6 +119,7 @@ export function render(element: HTMLElement) {
 	];
 	const accent = resolve(element, "--accent");
 	const peer = resolve(element, "--series-1");
+	const market = resolve(element, "--series-2");
 	const muted = resolve(element, "--muted");
 	const line = resolve(element, "--line");
 	const views = panel.querySelectorAll<HTMLButtonElement>(
@@ -137,6 +139,7 @@ export function render(element: HTMLElement) {
 		const visible = select(points, range);
 		const performance = view === "performance";
 		const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+		const qqq = visible.some((point) => point.qqq != null);
 		const rai = performance
 			? normalize(visible.map((point) => [point.observedAt, point.value]))
 			: visible.map((point) => [point.observedAt, point.value] as const);
@@ -148,7 +151,7 @@ export function render(element: HTMLElement) {
 				animationEasing: "cubicInOut",
 				stateAnimation: { duration: 120, easing: "cubicOut" },
 				color: performance
-					? [accent, peer]
+					? [accent, peer, market]
 					: [accent, ...styles.map(({ token }) => resolve(element, token))],
 				grid: {
 					containLabel: true,
@@ -215,6 +218,26 @@ export function render(element: HTMLElement) {
 									showSymbol: false,
 									z: 2,
 								},
+								...(qqq
+									? [
+											{
+												name: "QQQ",
+												type: "line",
+												connectNulls: false,
+												data: normalize(
+													visible.map((point) => [point.observedAt, point.qqq]),
+												),
+												emphasis: { disabled: true },
+												lineStyle: {
+													color: market,
+													type: "dotted",
+													width: 2.25,
+												},
+												showSymbol: false,
+												z: 2,
+											},
+										]
+									: []),
 							]
 						: [
 								{
@@ -288,7 +311,7 @@ export function render(element: HTMLElement) {
 		element.setAttribute(
 			"aria-label",
 			performance
-				? `${company} Rai estimate compared with the leave-one-out Rai Index, normalized to 100 across ${visible.length} daily observations.`
+				? `${company} Rai estimate compared with the leave-one-out Rai Index${qqq ? " and QQQ" : ""}, with each available series normalized to 100 across ${visible.length} daily observations.`
 				: `${company} valuation and method inputs across ${visible.length} daily observations.`,
 		);
 	}

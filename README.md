@@ -37,6 +37,7 @@ allocation rather than gaining extra influence from additional contracts.
 - `@mdit/plugin-katex` and KaTeX
 - uico plus a layered `+style.css`
 - native `fetch` for Polymarket’s public Gamma and Data APIs
+- Alpha Vantage’s daily equity API for the QQQ benchmark
 - Drizzle ORM and Turso for historical observations
 - Apache ECharts for client-side history charts
 
@@ -52,7 +53,9 @@ Copy `.env.example` to `.env` and configure:
 
 - `TURSO_URL` — the Turso database URL;
 - `TURSO_TOKEN` — a token with permission to read and write that database;
-- `CRON_SECRET` — a long random value used to authenticate the snapshot route.
+- `CRON_SECRET` — a long random value used to authenticate the snapshot route;
+- `ALPHA_VANTAGE_API_KEY` — a free Alpha Vantage key used only by the daily
+  snapshot job to retrieve QQQ closing prices.
 
 Vite loads the local `.env` file into the server process. Browser code does not
 receive these values.
@@ -74,16 +77,19 @@ In Vercel, select the **Other** framework preset and leave the build and output
 settings at their defaults. Vercel will run the package build script and use the
 generated serverless function and static assets.
 
-Set `TURSO_URL`, `TURSO_TOKEN`, and `CRON_SECRET` in the Vercel project before
-deploying. The generated deployment configuration registers
+Set `TURSO_URL`, `TURSO_TOKEN`, `CRON_SECRET`, and `ALPHA_VANTAGE_API_KEY` in the
+Vercel project before deploying. The generated deployment configuration registers
 `/api/cron/snapshot-valuations` at `0 12 * * *`, or 12:00 UTC once per day. This
 fits the Hobby plan’s daily cron limit. Vercel sends `CRON_SECRET` as a bearer
 token; the route rejects unauthenticated requests and is marked `no-store`.
 
 ISR and the snapshot job are independent. The job writes one observation per
-UTC date. Company pages read the saved history during server rendering and can
+US Eastern calendar date. Company pages read the saved history during server rendering and can
 remain cached for up to the configured 10-minute ISR interval after a write.
-Repeated job requests on the same US Eastern calendar date are idempotent.
+Repeated job requests on the same US Eastern calendar date are idempotent. The
+same job makes one Alpha Vantage request and stores any previously unseen QQQ
+daily closes returned by the compact `TIME_SERIES_DAILY` response. A QQQ failure
+does not discard the primary valuation snapshot.
 
 ## Public API
 
@@ -141,11 +147,20 @@ pages query up to 365 observations in an async server component, then load the
 ECharts module only when chart data is present. After seven daily changes, the
 history view reports annualized realized volatility using up to 30 daily
 logarithmic changes. This measures movement in Rai’s estimate, not the risk of a
-traded security. The chart can also rebase the company estimate and a
-leave-one-out, equal-weight Rai peer index to 100 over the latest week or all
-stored history. The comparison begins with Rai’s own observations and does not
-backfill earlier data. Each company-method page also links to its current public
-API response.
+traded security. The chart can also rebase the company estimate, a leave-one-out
+equal-weight Rai peer index, and QQQ to 100 over the latest week or all stored
+history. The Rai Index is recalculated whenever a new daily run is stored. QQQ
+uses raw daily closing prices from Alpha Vantage and carries the latest prior
+close across non-trading days. The comparison begins with Rai’s own observations
+and does not show earlier market history. Each company-method page also links to
+its current public API response.
+
+The QQQ integration uses Alpha Vantage’s documented
+[`TIME_SERIES_DAILY`](https://www.alphavantage.co/documentation/#daily) endpoint.
+One daily request is within the free API allowance. Alpha Vantage’s free license
+is for personal, non-commercial use; review its
+[terms](https://www.alphavantage.co/terms_of_service/) before commercializing
+Rai or redistributing the underlying market data more broadly.
 
 The database schema is in `src/server/db/schema.ts`; generated SQL migrations
 are committed under `drizzle/`. Run `npm run db:generate` after schema changes
