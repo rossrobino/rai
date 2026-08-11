@@ -11,6 +11,7 @@ import * as schema from "../src/server/db/schema";
 import {
 	getPreviousValuation,
 	getValuationHistory,
+	realizedVolatility,
 	recordValuations,
 	type ValuationObservation,
 } from "../src/server/history";
@@ -35,6 +36,25 @@ const observation: ValuationObservation = {
 		},
 	],
 };
+
+test("realized volatility uses daily log changes and a minimum sample", () => {
+	const changes = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
+	const values = changes.reduce(
+		(points, change) => [
+			...points,
+			{ value: (points.at(-1)?.value ?? 100) * Math.exp(change) },
+		],
+		[{ value: 100 }],
+	);
+	const result = realizedVolatility(values);
+
+	assert.equal(result?.days, 7);
+	assert.ok(
+		Math.abs((result?.value ?? 0) - Math.sqrt((0.0028 / 6) * 365)) <
+			0.0000000001,
+	);
+	assert.equal(realizedVolatility(values.slice(0, -1)), undefined);
+});
 
 test("daily valuation snapshots are stored once and returned chronologically", async () => {
 	const folder = await mkdtemp(join(tmpdir(), "rai-history-"));

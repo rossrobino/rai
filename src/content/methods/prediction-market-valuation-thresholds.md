@@ -5,7 +5,7 @@ summary: Turns a set of “at least this high” contracts into a probability di
 eyebrow: Method 02
 status: Experimental
 order: 2
-updated: July 29, 2026
+updated: August 11, 2026
 readTime: 6 minute read
 ---
 
@@ -113,7 +113,7 @@ For every contract Rai retains:
 - Rai’s fetch time;
 - the raw and fitted probabilities.
 
-The two timestamps have different meanings. Provider update time describes Polymarket’s record; fetch time records when Rai observed it. API requests use an eight-second timeout and a short in-memory cache to limit provider traffic. A server restart clears the cache, and the MVP does not yet provide a historical database.
+The two timestamps have different meanings. Provider update time describes Polymarket’s record; fetch time records when Rai observed it. API requests use an eight-second timeout and a short in-memory cache to limit provider traffic. A server restart clears the cache. The daily history stores the resulting current-equivalent method input, but not a complete immutable copy of every raw contract quote.
 
 Each company-method page provides a versioned JSON export containing the configured method, source observations, assumptions, fetch time, and calculated output. Saving that response preserves the inputs for one run.
 

@@ -5,7 +5,7 @@ summary: Normalizes method influence within each evidence family, then combines 
 eyebrow: Method 03
 status: Active
 order: 3
-updated: July 29, 2026
+updated: August 11, 2026
 readTime: 5 minute read
 ---
 
@@ -80,7 +80,7 @@ A wide range is not hidden by the average. It signals sensitivity to the source 
 
 The live estimate uses the positively weighted methods that are available for the response. If an assigned method fails, Rai marks the estimate as incomplete and reports the unavailable-method count.
 
-The estimate is not persisted in the MVP. It can change when Polymarket prices or configured assumptions change.
+Rai persists one daily estimate and its contributing method inputs. The live estimate can still change between snapshots when Polymarket prices or configured assumptions change.
 
 ## Interpretation
 

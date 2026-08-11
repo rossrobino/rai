@@ -1051,7 +1051,7 @@
 		border-block-start: 1px solid var(--line);
 		border-inline-start: 1px solid var(--line);
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		margin: 0 0 1.5rem;
 	}
 
@@ -1073,6 +1073,11 @@
 	.history-stats dd {
 		font: 0.74rem/1.4 var(--font-mono);
 		margin: 0;
+	}
+
+	.history-stats small {
+		color: var(--muted);
+		font-size: 0.64rem;
 	}
 
 	.history-chart-panel {
@@ -1110,8 +1115,15 @@
 		margin-block-end: 0.75rem;
 	}
 
+	.history-method,
 	.history-table {
 		margin-block-start: 1.5rem;
+	}
+
+	.history-method p {
+		color: var(--muted);
+		font-size: 0.78rem;
+		max-inline-size: 46rem;
 	}
 
 	.company-methods-intro {

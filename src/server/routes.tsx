@@ -25,6 +25,7 @@ import {
 import {
 	getPreviousValuation,
 	getValuationHistory,
+	realizedVolatility,
 	recordValuations,
 	type ValuationObservation,
 } from "@/server/history";
@@ -1063,6 +1064,7 @@ async function CompanyValuationHistory(props: { config: Company }) {
 	const first = history[0];
 	const latest = history.at(-1);
 	if (!first || !latest) return null;
+	const volatility = realizedVolatility(history);
 
 	return (
 		<section
@@ -1094,6 +1096,15 @@ async function CompanyValuationHistory(props: { config: Company }) {
 					<dt>Latest recorded</dt>
 					<dd>{formatDateTime(latest.observedAt)}</dd>
 				</div>
+				<div>
+					<dt>Realized volatility</dt>
+					<dd>{volatility ? formatProbability(volatility.value) : "—"}</dd>
+					<small>
+						{volatility
+							? `${volatility.days}D window · annualized`
+							: "Needs 8 daily observations"}
+					</small>
+				</div>
 			</dl>
 			<div class="history-chart-panel">
 				<div
@@ -1114,6 +1125,15 @@ async function CompanyValuationHistory(props: { config: Company }) {
 					daily observations accumulate.
 				</p>
 			) : null}
+			<details class="history-method">
+				<summary>How realized volatility is calculated</summary>
+				<p>
+					Rai calculates the annualized sample standard deviation of daily
+					logarithmic changes over the latest 30 days. It waits for at least
+					seven daily changes. This describes movement in Rai’s model estimate,
+					not the risk of a traded security.
+				</p>
+			</details>
 			<details class="history-table">
 				<summary>View recorded values</summary>
 				<div class="table-wrap">

@@ -41,6 +41,34 @@ export type ValuationHistoryPoint = {
 	}[];
 };
 
+/** Calculates annualized realized volatility from up to 30 daily valuation changes. */
+export function realizedVolatility(
+	points: Pick<ValuationHistoryPoint, "value">[],
+	window = 30,
+	minimum = 7,
+) {
+	const values = points.slice(-(window + 1)).map((point) => point.value);
+	if (
+		values.length <= minimum ||
+		values.some((value) => !Number.isFinite(value) || value <= 0)
+	) {
+		return undefined;
+	}
+
+	const changes = values
+		.slice(1)
+		.map((value, i) => Math.log(value / (values[i] ?? value)));
+	const mean = changes.reduce((sum, value) => sum + value, 0) / changes.length;
+	const variance =
+		changes.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+		(changes.length - 1);
+
+	return {
+		value: Math.sqrt(variance * 365),
+		days: changes.length,
+	};
+}
+
 const easternDay = new Intl.DateTimeFormat("en-CA", {
 	year: "numeric",
 	month: "2-digit",

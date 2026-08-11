@@ -83,7 +83,7 @@ token; the route rejects unauthenticated requests and is marked `no-store`.
 ISR and the snapshot job are independent. The job writes one observation per
 UTC date. Company pages read the saved history during server rendering and can
 remain cached for up to the configured 10-minute ISR interval after a write.
-Repeated job requests on the same UTC date are idempotent.
+Repeated job requests on the same US Eastern calendar date are idempotent.
 
 ## Public API
 
@@ -138,8 +138,11 @@ Rai records both Polymarket’s source-record update time and its own fetch time
 the observation. The daily job stores the combined estimate, its range, method
 availability, and every contributing current-equivalent method input. Company
 pages query up to 365 observations in an async server component, then load the
-ECharts module only when chart data is present. Each company-method page also
-links to its current public API response.
+ECharts module only when chart data is present. After seven daily changes, the
+history view reports annualized realized volatility using up to 30 daily
+logarithmic changes. This measures movement in Rai’s estimate, not the risk of a
+traded security. Each company-method page also links to its current public API
+response.
 
 The database schema is in `src/server/db/schema.ts`; generated SQL migrations
 are committed under `drizzle/`. Run `npm run db:generate` after schema changes
